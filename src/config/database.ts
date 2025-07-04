@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'; // Importando o "tradutor" do MongoDB, o mongoose.
+import mongoose from 'mongoose'; // Importing the MongoDB "translator", mongoose.
 
 const connectDB = async () => {
   try {
@@ -6,10 +6,10 @@ const connectDB = async () => {
 
     await mongoose.connect(mongoURI);
 
-    console.log('MongoDB conectado com sucesso!');
+    console.log('MongoDB is connected successfully!');
   } catch (error) {
     console.error('Erro ao conectar ao MMongoDB:', error);
-    process.exit(1); // Se falhar, a aplicação é interrompida.
+    process.exit(1); // If it fails, the application is stopped.
   }
 };
 
