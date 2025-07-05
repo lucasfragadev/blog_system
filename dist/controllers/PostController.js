@@ -17,5 +17,14 @@ exports.postController = {
             console.error(error);
             return res.status(500).json({ message: 'An unexpected server error occurred.' });
         }
+    },
+    getAll: async (req, res) => {
+        try {
+            const posts = await PostService_1.postService.findAll();
+            return res.status(200).json(posts);
+        }
+        catch (error) {
+            return res.status(500).json({ message: "An unexpected server error occurred." });
+        }
     }
 };

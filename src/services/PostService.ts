@@ -28,5 +28,14 @@ export const postService = {
     } catch (error) {
       throw error;
     }
+  },
+
+  findAll: async (): Promise<IPost[]> => {
+    try {
+      const posts = await postRepository.findAll();
+      return posts;
+    } catch (error) {
+      throw error;
+    }
   }
 };

@@ -21,5 +21,14 @@ exports.postService = {
         catch (error) {
             throw error;
         }
+    },
+    findAll: async () => {
+        try {
+            const posts = await PostRepository_1.postRepository.findAll();
+            return posts;
+        }
+        catch (error) {
+            throw error;
+        }
     }
 };
