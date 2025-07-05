@@ -25,7 +25,7 @@ export const postRepository = {
 
   findAll: async (): Promise<IPost[]> => {
     try {
-      const posts = await PostModel.find().populate('author', 'name email').sort({ createdAt: -1});
+      const posts = await PostModel.find().populate('author', 'name email').sort({ createdAt: -1 });
       return posts;
     } catch (error) {
       console.error("Erro ao buscar postagens:", error);
@@ -36,13 +36,33 @@ export const postRepository = {
   findById: async (id: string): Promise<IPost | null> => {
     try {
 
-      if(!mongoose.Types.ObjectId.isValid(id)) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
         return null;
       }
-      
+
       const foundPost = await PostModel.findById(id).populate('author', 'name email')
       return foundPost;
     } catch (error) {
+      throw error;
+    }
+  },
+
+  updateById: async (id: string, data: { title?: string, content?: string }): Promise<IPost | null> => {
+    try {
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return null;
+      }
+
+      const updatePost = await PostModel.findByIdAndUpdate(
+        id, 
+        data, 
+        { new: true}
+      );
+
+      return updatePost;
+    } catch (error) {
+      console.error("Erro ao atualizar o post:", error);
       throw error;
     }
   }

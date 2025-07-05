@@ -47,4 +47,24 @@ export const postService = {
       throw error;
     }
   },
+
+  updatePost: async (id: string, userId: string, data: { title?: string, content?: string }): Promise<IPost | null> => {
+    try {
+      const posts = await postRepository.findById(id);
+      if (!posts) {
+        throw new Error('Post não encontrado.')
+      }
+
+      const authorId = posts.author._id.toString();
+      if (authorId !== userId) {
+        throw new Error('Ação não autorizada.');
+      }
+
+      const updatePost = await postRepository.updateById(id, data);
+      return updatePost;
+
+    } catch (error) {
+      throw error;
+    }
+  }
 };
