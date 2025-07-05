@@ -1,116 +1,109 @@
-# API de Blog - Projeto de Mentoria
+# API for Blog
 
-API RESTful para uma plataforma de blog, desenvolvida com Node.js, TypeScript e Express. O projeto segue uma arquitetura em camadas, orientada a boas práticas, e inclui um sistema de autenticação completo com JSON Web Tokens (JWT).
+RESTful API for a blog platform, developed with Node.js, TypeScript, and Express. The project follows a layered architecture, guided by best practices, and includes a complete authentication system using JSON Web Tokens (JWT).
 
-## Tecnologias Utilizadas
+## Technologies Used
 
-- **Backend:** Node.js, Express.js
-- **Linguagem:** TypeScript
-- **Banco de Dados:** MongoDB com Mongoose (ODM)
-- **Segurança:**
-  - `bcryptjs` para hashing de senhas.
-  - `jsonwebtoken` para autenticação baseada em token.
-  - `dotenv` para gerenciamento de variáveis de ambiente.
-- **Documentação da API:** Swagger/OpenAPI (a ser implementado)
+-   **Backend:** Node.js, Express.js
+-   **Language:** TypeScript
+-   **Database:** MongoDB with Mongoose (ODM)
+-   **Security:**
+    -   `bcryptjs` for password hashing.
+    -   `jsonwebtoken` for token-based authentication.
+    -   `dotenv` for environment variable management.
+-   **API Documentation:** Swagger/OpenAPI (to be implemented)
 
-## Configuração do Projeto
+## Project Setup
 
-1. **Clonar o repositório:**
+1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/seu-usuario/api_blog.git
+    git clone [https://github.com/seu-usuario/api_blog.git](https://github.com/seu-usuario/api_blog.git)
     cd api_blog
     ```
 
-2. **Instalar as dependências:**
+2.  **Install dependencies:**
     ```bash
     npm install
     ```
 
-3. **Configurar Variáveis de Ambiente:**
-    * Crie um arquivo `.env` na raiz do projeto.
-    * Adicione suas variáveis de ambiente, como a chave secreta do JWT e a URI do MongoDB.
+3.  **Configure Environment Variables:**
+    -   Create a `.env` file at the root of the project.
+    -   Add your environment variables, such as the JWT secret key and MongoDB URI.
     ```env
     MONGO_URI=mongodb://localhost:27017/blog_api
-    JWT_SECRET=sua_chave_super_secreta_e_dificil_de_adivinhar
+    JWT_SECRET=your_super_secret_and_hard_to_guess_key
     ```
 
-## Como Executar
+## How to Run
 
-*Este projeto utiliza os seguintes scripts no `package.json` (a serem adicionados):*
+*This project uses the following scripts in `package.json` (to be added):*
 
-- **Modo de Desenvolvimento (com auto-reload):**
+-   **Development Mode (with auto-reload):**
     ```bash
     npm run dev
     ```
 
-- **Modo de Produção:**
+-   **Production Mode:**
     ```bash
-    # 1. Compilar o código TypeScript para JavaScript
+    # 1. Compile TypeScript code to JavaScript
     npm run build
 
-    # 2. Iniciar o servidor a partir dos arquivos compilados
+    # 2. Start the server from compiled files
     npm start
     ```
 
-## Endpoints da API (Atuais)
+## API Endpoints (Current)
 
-### Rotas Públicas
+### Public Routes
 
-```http
-GET /
-```
+#### General
+-   **`GET /`**
+    -   **Description:** Welcome route. Returns an API status message.
+    -   **Response (200 OK):** `{"message": "Welcome to the Blog API!"}`
 
-**Descrição:** Rota de boas-vindas. Retorna uma mensagem de status da API.
+#### Users
+-   **`POST /users`**
+    -   **Description:** Creates a new user.
+    -   **Request Body (JSON):** `{"name": "...", "email": "...", "password": "..."}`  
+    -   **Response (201 Created):** Returns the new user object (with hashed password).
 
-**Resposta (200 OK):**
-```json
-{"message": "Bem-vindo à API do Blog!"}
-```
+-   **`POST /login`**
+    -   **Description:** Authenticates a user and returns a JWT token.
+    -   **Request Body (JSON):** `{"email": "...", "password": "..."}`  
+    -   **Response (200 OK):** `{"token": "your_jwt_token_here"}`
 
-```http
-POST /users
-```
+#### Posts
+-   **`GET /posts`**
+    -   **Description:** Returns a list of all blog posts, with the most recent first. The post author is "populated" with name and email.
+    -   **Response (200 OK):**
+        ```json
+        [
+          {
+            "_id": "68694bbb703b3369646f5457",
+            "title": "My First Post",
+            "content": "Post content...",
+            "author": {
+              "_id": "6868b78875c0d20eabc5b769",
+              "name": "Author Name",
+              "email": "author@example.com"
+            },
+            "createdAt": "...",
+            "__v": 0
+          }
+        ]
+        ```
 
-**Descrição:** Cria um novo usuário.
+-   **`GET /posts/:id`**
+    -   **Description:** Fetches and returns a single post by its ID.
+    -   **URL Parameters:** `id` - The ID of the post to be fetched.
+    -   **Responses:**
+        -   **200 OK:** Returns the found post object, with the author populated.
+        -   **404 Not Found:** `{"message": "Post not found."}`
 
-**Corpo da Requisição (JSON):**
-```json
-{"name": "...", "email": "...", "password": "..."}
-```
+### Private Routes (Require Authentication)
 
-**Resposta (201 Created):**
-Retorna o objeto do novo usuário (com a senha em hash).
+*All private routes require an `Authorization` header in the format: `Authorization: Bearer YOUR_TOKEN_HERE`*
 
-```http
-POST /login
-```
-
-**Descrição:** Autentica um usuário e retorna um token JWT.
-
-**Corpo da Requisição (JSON):**
-```json
-{"email": "...", "password": "..."}
-```
-
-**Resposta (200 OK):**
-```json
-{"token": "seu_token_jwt_aqui"}
-```
-
-### Rotas Privadas (Requerem Autenticação)
-
-Todas as rotas privadas exigem um cabeçalho Authorization no formato:
-```http
-Authorization: Bearer SEU_TOKEN_AQUI
-```
-
-```http
-GET /profile
-```
-
-**Descrição:** Retorna as informações do usuário logado (contidas no payload do token).
-
-**Resposta (200 OK):**
-```json
-{"id": "...", "name": "...", "iat": ..., "exp": ...}
-```
+-   **`GET /profile`**
+    -   **Description:** Returns information about the logged-in user (contained in the token payload).
+    -   **Response (200 OK):** `{"id": "...", "name": "...", "iat": ..., "exp": ...}`
