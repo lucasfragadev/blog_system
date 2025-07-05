@@ -59,5 +59,22 @@ exports.postService = {
         catch (error) {
             throw error;
         }
+    },
+    deletePost: async (id, userId) => {
+        try {
+            const post = await PostRepository_1.postRepository.findById(id);
+            if (!post) {
+                throw new Error('Post não encontrado.');
+            }
+            const authorId = post.author._id.toString();
+            if (authorId !== userId) {
+                throw new Error('Ação não autorizada.');
+            }
+            const deletedPost = await PostRepository_1.postRepository.deleteById(id);
+            return deletedPost;
+        }
+        catch (error) {
+            throw error;
+        }
     }
 };
