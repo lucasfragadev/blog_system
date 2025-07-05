@@ -11,5 +11,6 @@ privateRoutes.use(authMiddleware);
 privateRoutes.get('/profile', userController.getProfile);
 privateRoutes.post('/posts', postController.create);
 privateRoutes.put('/posts/:id', postController.update);
+privateRoutes.delete('/posts/:id', postController.delete);
 
 export default privateRoutes;

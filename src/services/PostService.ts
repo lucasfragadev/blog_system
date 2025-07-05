@@ -66,5 +66,25 @@ export const postService = {
     } catch (error) {
       throw error;
     }
+  },
+
+  deletePost: async (id: string, userId: string): Promise<IPost | null> => {
+    try {
+      const post = await postRepository.findById(id);
+      if(!post) {
+        throw new Error('Post não encontrado.')
+      }
+
+      const authorId = post.author._id.toString();
+      if (authorId !== userId) {
+        throw new Error('Ação não autorizada.');
+      }
+
+      const deletedPost = await postRepository.deleteById(id);
+      return deletedPost;
+
+    } catch (error) {
+      throw error;
+    }
   }
 };

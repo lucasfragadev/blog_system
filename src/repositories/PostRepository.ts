@@ -65,5 +65,21 @@ export const postRepository = {
       console.error("Erro ao atualizar o post:", error);
       throw error;
     }
+  },
+
+  deleteById: async (id: string): Promise<IPost | null> => {
+    try {
+      if(!mongoose.Types.ObjectId.isValid(id)) {
+        return null;
+      }
+
+      const deletePost = await PostModel.findByIdAndDelete(id);
+      return deletePost;
+      
+    } catch (error) {
+      console.error("Erro ao deletar o post:", error);
+      throw error;
+      
+    }
   }
 }

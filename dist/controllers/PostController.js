@@ -62,5 +62,26 @@ exports.postController = {
             console.error("Erro ao atualizar post:", error);
             return res.status(500).json({ message: "Ocorreu um erro inesperado." });
         }
+    },
+    delete: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const authorId = req.user?.id;
+            if (!authorId) {
+                return res.status(403).json({ message: "Ação não autorizada." });
+            }
+            await PostService_1.postService.deletePost(id, authorId);
+            return res.status(204).send();
+        }
+        catch (error) {
+            if (error.message === 'Post não encontrado.') {
+                return res.status(404).json({ message: error.message });
+            }
+            if (error.message === 'Ação não autorizada.') {
+                return res.status(403).json({ message: error.message });
+            }
+            console.error("Erro ao deletar post:", error);
+            return res.status(500).json({ message: "Ocorreu um erro inesperado." });
+        }
     }
 };
