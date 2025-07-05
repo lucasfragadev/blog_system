@@ -22,5 +22,15 @@ export const postRepository = {
       console.error("Erro ao criar post no repositório:", error);
       throw error;
     }
-  }
+  },
+
+  findAll: async (): Promise<IPost[]> => {
+    try {
+      const posts = await PostModel.find().populate('author', 'name email').sort({ createdAt: -1});
+      return posts;
+    } catch (error) {
+      console.error("Erro ao buscar postagens:", error);
+      throw error;
+    }
+  },
 }
