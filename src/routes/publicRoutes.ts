@@ -8,5 +8,6 @@ const publicRoutes = Router();
 publicRoutes.post('/users', userController.create);
 publicRoutes.post('/login', userController.authenticate);
 publicRoutes.get('/posts', postController.getAll);
+publicRoutes.get('/posts/:id', postController.getById);
 
 export default publicRoutes;

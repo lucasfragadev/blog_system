@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.postRepository = void 0;
+const mongoose_1 = __importDefault(require("mongoose"));
 const Post_1 = __importDefault(require("../models/Post"));
 exports.postRepository = {
     /**
@@ -31,4 +32,16 @@ exports.postRepository = {
             throw error;
         }
     },
+    findById: async (id) => {
+        try {
+            if (!mongoose_1.default.Types.ObjectId.isValid(id)) {
+                return null;
+            }
+            const foundPost = await Post_1.default.findById(id).populate('author', 'name email');
+            return foundPost;
+        }
+        catch (error) {
+            throw error;
+        }
+    }
 };

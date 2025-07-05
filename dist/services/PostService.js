@@ -30,5 +30,17 @@ exports.postService = {
         catch (error) {
             throw error;
         }
-    }
+    },
+    getPostById: async (id) => {
+        try {
+            const foundPostById = await PostRepository_1.postRepository.findById(id);
+            if (!foundPostById) {
+                throw new Error('Post não encontrado.');
+            }
+            return foundPostById;
+        }
+        catch (error) {
+            throw error;
+        }
+    },
 };
