@@ -13,6 +13,7 @@
   "author": "lucasfragadev",
   "license": "ISC",
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "express": "^4.19.2",
     "mongoose": "^8.4.1"
   },

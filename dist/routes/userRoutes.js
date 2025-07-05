@@ -8,5 +8,6 @@ const UserController_1 = require("../controllers/UserController");
 const userRoutes = (0, express_1.Router)();
 // Mapeamos o método POST na rota /users para a função create do nosso controller
 userRoutes.post('/users', UserController_1.userController.create);
+userRoutes.post('/login', UserController_1.userController.authenticate);
 // Exportamos o roteador configurado como o default deste módulo
 exports.default = userRoutes;

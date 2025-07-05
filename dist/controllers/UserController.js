@@ -24,5 +24,27 @@ exports.userController = {
             // Return a generic server error message
             return res.status(500).json({ message: "An unexpected server error occurred." });
         }
-    }
+    },
+    authenticate: async (req, res) => {
+        const { email, password } = req.body;
+        try {
+            // Check if email and password are provided
+            if (!email || !password) {
+                return res.status(400).json({ message: "Email and password are required." });
+            }
+            const user = await UserService_1.userService.authenticate(email, password);
+            // Return the authenticated user
+            return res.status(200).json(user);
+        }
+        catch (error) {
+            // Handle invalid credentials error
+            if (error.message === "Invalid Credentials.") { // This message is part of the error handling logic, not a comment to be translated.
+                return res.status(401).json({ message: error.message });
+            }
+            // Log other unexpected errors
+            console.error(error);
+            // Return a generic server error message
+            return res.status(500).json({ message: "An unexpected server error occurred." });
+        }
+    },
 };

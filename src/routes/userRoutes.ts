@@ -8,6 +8,7 @@ const userRoutes = Router();
 
 // Mapeamos o método POST na rota /users para a função create do nosso controller
 userRoutes.post('/users', userController.create);
+userRoutes.post('/login', userController.authenticate);
 
 // Exportamos o roteador configurado como o default deste módulo
 export default userRoutes;

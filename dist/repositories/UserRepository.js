@@ -21,4 +21,14 @@ exports.userRepository = {
             throw error; // This is used to throw the error so that the service layer can capture it.;
         }
     },
+    findByEmail: async (email) => {
+        try {
+            const foundUser = await User_1.default.findOne({ email });
+            return foundUser;
+        }
+        catch (error) {
+            console.error("Erro ao procura e-mail:", error);
+            throw error;
+        }
+    },
 };
