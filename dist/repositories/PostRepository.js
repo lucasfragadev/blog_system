@@ -43,5 +43,18 @@ exports.postRepository = {
         catch (error) {
             throw error;
         }
+    },
+    updateById: async (id, data) => {
+        try {
+            if (!mongoose_1.default.Types.ObjectId.isValid(id)) {
+                return null;
+            }
+            const updatePost = await Post_1.default.findByIdAndUpdate(id, data, { new: true });
+            return updatePost;
+        }
+        catch (error) {
+            console.error("Erro ao atualizar o post:", error);
+            throw error;
+        }
     }
 };

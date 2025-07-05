@@ -40,5 +40,27 @@ exports.postController = {
             console.error("Error fetching post by ID:", error);
             return res.status(500).json({ message: "An unexpected server error occurred." });
         }
+    },
+    update: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const authorId = req.user?.id;
+            const { title, content } = req.body;
+            if (!authorId) {
+                return res.status(403).json({ message: "Ação não autorizada." });
+            }
+            const updatedPost = await PostService_1.postService.updatePost(id, authorId, { title, content });
+            return res.status(200).json(updatedPost);
+        }
+        catch (error) {
+            if (error.message === 'Post não encontrado.') {
+                return res.status(404).json({ message: error.message });
+            }
+            if (error.message === 'Ação não autorizada.') {
+                return res.status(403).json({ message: error.message });
+            }
+            console.error("Erro ao atualizar post:", error);
+            return res.status(500).json({ message: "Ocorreu um erro inesperado." });
+        }
     }
 };
