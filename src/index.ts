@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express'; // Import Express.
 import routes from './routes'; // Import the main server.
 import connectDB from './config/database';

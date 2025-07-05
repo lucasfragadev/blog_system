@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { userService } from '../services/UserService';
+import { AuthRequest } from '../middlewares/authMiddleware';
 
 export const userController = {
   create: async (req: Request, res: Response) => {
@@ -38,10 +39,10 @@ export const userController = {
         return res.status(400).json({ message: "Email and password are required." });
       }
 
-      const user = await userService.authenticate(email, password);
+      const token = await userService.authenticate(email, password);
 
       // Return the authenticated user
-      return res.status(200).json(user);
+      return res.status(200).json({ token });
 
     } catch (error: any) {
       // Handle invalid credentials error
@@ -56,4 +57,8 @@ export const userController = {
 
     }
   },
+
+  getProfile: (req: AuthRequest, res: Response) => {
+    res.status(200).json(req.user);
+  }
 };

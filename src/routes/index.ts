@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import { welcomeController } from '../controllers/welcomeController';
-import userRoutes from './userRoutes'; // Importa o ROTEADOR de usuários
+import publicRoutes from './publicRoutes';
+import privateRoutes from './privateRoutes';
 
 const router = Router();
 
 // Rota de boas-vindas
 router.get('/', welcomeController.getWelcomeMessage);
 
-// Aqui, dizemos ao roteador principal para USAR o conjunto de rotas de usuário.
-// O .use() é para plugar módulos de rotas ou middlewares.
-router.use(userRoutes);
+router.use(publicRoutes);  
+router.use(privateRoutes);
 
 export default router;

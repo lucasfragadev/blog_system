@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.userService = void 0;
 const UserRepository_1 = require("../repositories/UserRepository");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 exports.userService = {
     /**
      * @description Handles the business logic for creating a new user.
@@ -39,11 +40,20 @@ exports.userService = {
             if (!user) {
                 throw new Error("Invalid Credentials.");
             }
-            const isPasswordValid = await bcryptjs_1.default.compare(password, user.password);
-            if (!isPasswordValid) {
+            const isPasswordMatch = await bcryptjs_1.default.compare(password, user.password);
+            if (!isPasswordMatch) {
                 throw new Error("Invalid Credentials.");
             }
-            return user;
+            const secret = process.env.JWT_SECRET;
+            if (!secret) {
+                throw new Error('The JWT secret key is not configured. ');
+            }
+            const payload = {
+                id: user._id,
+                name: user.name
+            };
+            const token = jsonwebtoken_1.default.sign(payload, secret, { expiresIn: '8h' });
+            return token;
         }
         catch (error) {
             throw error;

@@ -32,9 +32,9 @@ exports.userController = {
             if (!email || !password) {
                 return res.status(400).json({ message: "Email and password are required." });
             }
-            const user = await UserService_1.userService.authenticate(email, password);
+            const token = await UserService_1.userService.authenticate(email, password);
             // Return the authenticated user
-            return res.status(200).json(user);
+            return res.status(200).json({ token });
         }
         catch (error) {
             // Handle invalid credentials error
@@ -47,4 +47,7 @@ exports.userController = {
             return res.status(500).json({ message: "An unexpected server error occurred." });
         }
     },
+    getProfile: (req, res) => {
+        res.status(200).json(req.user);
+    }
 };

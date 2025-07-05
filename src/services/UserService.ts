@@ -1,7 +1,8 @@
 import { userRepository } from "../repositories/UserRepository";
 import { IUser } from "../models/User"; // Importing the Interface;
 import bcrypt from "bcryptjs";
-import { sensitiveHeaders } from "http2";
+import jwt from 'jsonwebtoken';
+
 
 // Interface for the data this service expects to receive;
 // For now, it will be the same as the repository.
@@ -38,25 +39,42 @@ export const userService = {
       throw error;
     }
   },
-  
-  authenticate: async (email: string, password: string): Promise<IUser | null> => {
+
+  authenticate: async (email: string, password: string): Promise<string> => {
     try {
 
       const user = await userRepository.findByEmail(email);
-      
+
       if (!user) {
         throw new Error("Invalid Credentials.")
-      } 
+      }
 
-      const isPasswordValid = await bcrypt.compare(password, user.password)
+      const isPasswordMatch = await bcrypt.compare(password, user.password)
 
-      if (!isPasswordValid) {
+      if (!isPasswordMatch) {
         throw new Error("Invalid Credentials.")
       }
-      return user;
+
+      const secret = process.env.JWT_SECRET;
+      if (!secret) {
+        throw new Error('The JWT secret key is not configured. ')
+      }
+
+      const payload = {
+        id: user._id,
+        name: user.name
+      };
+
+      const token = jwt.sign(
+        payload,
+        secret,
+        { expiresIn: '8h' }
+      );
+
+      return token;
 
     } catch (error) {
-    throw error;
+      throw error;
     }
   }
 };

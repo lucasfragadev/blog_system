@@ -5,6 +5,7 @@ import { Schema, model } from 'mongoose'; // Here I imported the Schema and the 
 
 // 1. Interface to give types to the User document;
 export interface IUser {
+  _id: any;
   name: string;
   email: string;
   password: string;
