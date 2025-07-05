@@ -8,4 +8,5 @@ const publicRoutes = (0, express_1.Router)();
 publicRoutes.post('/users', UserController_1.userController.create);
 publicRoutes.post('/login', UserController_1.userController.authenticate);
 publicRoutes.get('/posts', PostController_1.postController.getAll);
+publicRoutes.get('/posts/:id', PostController_1.postController.getById);
 exports.default = publicRoutes;

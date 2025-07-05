@@ -15,16 +15,13 @@ export const postService = {
    */
   create: async (postData: ICreatePostData): Promise<IPost> => {
     try {
-
       const dataForRepo = {
         title: postData.title,
         content: postData.content,
         author: postData.authorId,
       };
-
       const newPost = await postRepository.create(dataForRepo);
       return newPost;
-
     } catch (error) {
       throw error;
     }
@@ -37,5 +34,17 @@ export const postService = {
     } catch (error) {
       throw error;
     }
-  }
+  },
+
+  getPostById: async (id: string): Promise<IPost> => {
+    try {
+      const foundPostById = await postRepository.findById(id);
+      if (!foundPostById) {
+        throw new Error('Post não encontrado.')
+      }
+      return foundPostById;
+    } catch (error) {
+      throw error;
+    }
+  },
 };
