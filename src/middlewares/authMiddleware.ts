@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-// Estendemos a interface Request do Express para adicionar nossa propriedade 'user',
-// que conterá o payload decodificado do token.
+// We extend Express's Request interface to add our 'user' property,
+// which will contain the decoded payload of the token.
 
 export interface AuthRequest extends Request {
   user?: { id: string; name: string }

@@ -22,7 +22,7 @@ export const userRepository = {
       const newUser = await UserModel.create(userData);
       return newUser;
     } catch (error) {
-      console.error("Erro ao criar usuário no repositório:", error);
+      console.error("Error creating user in repository:", error);
       throw error; // This is used to throw the error so that the service layer can capture it.;
     }
   },
@@ -32,7 +32,7 @@ export const userRepository = {
       const foundUser = await UserModel.findOne({ email });
       return foundUser;
     } catch (error) {
-      console.error("Erro ao procura e-mail:", error);
+      console.error("Error searching for email:", error);
       throw error;
     }
   },

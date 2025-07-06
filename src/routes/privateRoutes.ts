@@ -7,7 +7,7 @@ const privateRoutes = Router();
 
 privateRoutes.use(authMiddleware);
 
-// Rotas que precisam de autenticação
+// Routes that require authentication
 privateRoutes.get('/profile', userController.getProfile);
 privateRoutes.post('/posts', postController.create);
 privateRoutes.put('/posts/:id', postController.update);

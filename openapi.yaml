@@ -1,0 +1,203 @@
+# OpenAPI Specification Version
+openapi: 3.0.0
+
+# General API Information
+info:
+  title: Blog API
+  description: API to manage users and blog posts.
+  version: 1.0.0
+  contact:
+    name: Lucas Avelino Fraga
+    email: lucasfraga.dev@gmail.com
+  
+# Servers where the API is available
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+# Tag definitions used to group endpoints
+tags:
+  - name: General
+    description: General API operations 
+  - name: Auth
+    description: Authentication operations
+  - name: Users
+    description: Operations related to Users
+  - name: Posts
+    description: Operations related to Posts
+
+# Security scheme definition (Bearer Token)
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT authentication token. To authenticate, provide the token in the `Authorization` header with the "Bearer " prefix.
+        Example: `Authorization: Bearer <your-jwt-token>`
+  schemas:
+    User:
+      type: object
+      properties:
+        _id: { type: string, example: '65e8c8a8b2c9b4e4b3e8e8a0' }
+        name: { type: string, example: 'John Doe' }
+        email: { type: string, format: email, example: 'john.doe@example.com' }
+        createdAt: { type: string, format: date-time, readOnly: true }
+    UserCreate:
+      type: object
+      properties:
+        name: { type: string, example: 'John Doe' }
+        email: { type: string, format: email, example: 'john.doe@example.com' }
+        password: { type: string, format: password, example: 'S3nh@F0rt3!', writeOnly: true }
+      required: [name, email, password]
+    Post:
+      type: object
+      properties:
+        _id: { type: string, example: '65e8c9d7b2c9b4e4b3e8e8a4' }
+        title: { type: string, example: 'My First Post' }
+        content: { type: string, example: 'This is the content...' }
+        author: { type: string, example: '65e8c8a8b2c9b4e4b3e8e8a0' }
+        createdAt: { type: string, format: date-time, readOnly: true }
+    PostCreate:
+      type: object
+      properties:
+        title: { type: string, example: 'Post Title' }
+        content: { type: string, example: 'Post content...' }
+      required: [title, content]
+    AuthLogin:
+      type: object
+      properties:
+        email: { type: string, format: email, example: 'john.doe@example.com' }
+        password: { type: string, format: password, example: 'S3nh@F0rt3!' }
+      required: [email, password]
+    AuthToken:
+      type: object
+      properties:
+        token: { type: string, example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' }
+    Error:
+      type: object
+      properties:
+        message: { type: string, example: 'Descriptive error message.' }
+
+# Global security application for private endpoints
+security:
+  - BearerAuth: []
+
+# Endpoint definitions
+paths:
+  # Public Routes
+  /:
+    get:
+      tags: [General]
+      summary: Displays the API welcome message
+      description: Root endpoint that returns a message to confirm the API is up and running.
+      security: []
+      responses:
+        '200':
+          description: Welcome message returned successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Welcome to the Blog API!"
+  /login:
+    post:
+      tags: [Auth]
+      summary: Authenticates a user and returns a token
+      security: [] # Overrides global security
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/AuthLogin' } }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/AuthToken' } } } }
+        '401': { description: 'Invalid credentials', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /users:
+    post:
+      tags: [Users]
+      summary: Creates a new user
+      security: [] # Overrides global security
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/UserCreate' } }
+      responses:
+        '201': { description: 'Created', content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '409': { description: 'Email already exists', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  # /posts route with GET (public) and POST (private)
+  /posts:
+    get:
+      tags: [Posts]
+      summary: Lists all public posts
+      security: [] # Overrides global security for this endpoint
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Post' } } } } }
+    post:
+      tags: [Posts]
+      summary: Creates a new post (authenticated)
+      # No local 'security' definition, so global security is applied
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/PostCreate' } }
+      responses:
+        '201': { description: 'Created', content: { application/json: { schema: { $ref: '#/components/schemas/Post' } } } }
+        '401': { description: 'Unauthorized' }
+
+  # Private Routes (global security applies)
+  /profile:
+    get:
+      tags: [Users]
+      summary: Gets the authenticated user's profile
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '401': { description: 'Unauthorized' }
+
+  /posts/{id}:
+    get:
+      tags: [Posts]
+      summary: Gets a post by ID
+      security: [] # Overrides global security for this endpoint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/Post' } } } }
+        '404': { description: 'Not found' }
+    put:
+      tags: [Posts]
+      summary: Updates an existing post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/PostCreate' } }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/Post' } } } }
+        '401': { description: 'Unauthorized' }
+        '403': { description: 'Forbidden' }
+        '404': { description: 'Not found' }
+    delete:
+      tags: [Posts]
+      summary: Deletes a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: 'No content' }
+        '401': { description: 'Unauthorized' }
+        '403': { description: 'Forbidden' }
+        '404': { description: 'Not found' }
