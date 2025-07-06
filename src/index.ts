@@ -7,7 +7,7 @@ import connectDB from './config/database';
 import cors from 'cors';
 
 import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './swaggerConfig';
+import YAML from 'yamljs';
 
 
 const startServer = async () => {
@@ -16,14 +16,14 @@ const startServer = async () => {
   
   const app = express(); 
   const PORT = 3000;
+  const swaggerDocument = YAML.load('./openapi.yaml');
 
   app.use(express.json()); // Middleware to teach Express to read the request body in JSON.
   app.use(cors());
   
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   
   app.use(routes); // Tells the application to use the router we imported.
-    
   app.listen(PORT, () => {
     console.log(`The server is running on PORT: ${PORT}!`)
     console.log(`Access directly at: http://localhost:${PORT}`)

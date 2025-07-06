@@ -8,6 +8,6 @@ export const welcomeController = {
    */
 
   getWelcomeMessage: (req: Request, res: Response) => {
-    res.json({ message: "Bem vindo à API Blog!" });
+    res.json({ message: "Welcome to the Blog API!" });
   }
 };

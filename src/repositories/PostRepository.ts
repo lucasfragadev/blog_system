@@ -18,7 +18,7 @@ export const postRepository = {
       const newPost = await PostModel.create(postData);
       return newPost;
     } catch (error) {
-      console.error("Erro ao criar post no repositório:", error);
+      console.error("Error creating post in repository:", error);
       throw error;
     }
   },
@@ -28,7 +28,7 @@ export const postRepository = {
       const posts = await PostModel.find().populate('author', 'name email').sort({ createdAt: -1 });
       return posts;
     } catch (error) {
-      console.error("Erro ao buscar postagens:", error);
+      console.error("Error fetching posts:", error);
       throw error;
     }
   },
@@ -62,7 +62,7 @@ export const postRepository = {
 
       return updatePost;
     } catch (error) {
-      console.error("Erro ao atualizar o post:", error);
+      console.error("Error updating post:", error);
       throw error;
     }
   },
@@ -77,7 +77,7 @@ export const postRepository = {
       return deletePost;
       
     } catch (error) {
-      console.error("Erro ao deletar o post:", error);
+      console.error("Error deleting post:", error);
       throw error;
       
     }

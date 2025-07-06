@@ -5,7 +5,7 @@ import privateRoutes from './privateRoutes';
 
 const router = Router();
 
-// Rota de boas-vindas
+// Welcome route
 router.get('/', welcomeController.getWelcomeMessage);
 
 router.use(publicRoutes);  

@@ -11,7 +11,8 @@ RESTful API for a blog platform, developed with Node.js, TypeScript, and Express
     -   `bcryptjs` for password hashing.
     -   `jsonwebtoken` for token-based authentication.
     -   `dotenv` for environment variable management.
--   **API Documentation:** Swagger/OpenAPI (to be implemented)
+    -   `cors` for enabling cross-origin requests.
+-   **API Documentation:** Swagger/OpenAPI
 
 ## Project Setup
 
@@ -36,7 +37,7 @@ RESTful API for a blog platform, developed with Node.js, TypeScript, and Express
 
 ## How to Run
 
-*This project uses the following scripts in `package.json` (to be added):*
+*This project uses the following scripts in `package.json`:*
 
 -   **Development Mode (with auto-reload):**
     ```bash
@@ -64,12 +65,12 @@ RESTful API for a blog platform, developed with Node.js, TypeScript, and Express
 #### Users
 -   **`POST /users`**
     -   **Description:** Creates a new user.
-    -   **Request Body (JSON):** `{"name": "...", "email": "...", "password": "..."}`  
+    -   **Request Body (JSON):** `{"name": "...", "email": "...", "password": "..."}`
     -   **Response (201 Created):** Returns the new user object (with hashed password).
 
 -   **`POST /login`**
     -   **Description:** Authenticates a user and returns a JWT token.
-    -   **Request Body (JSON):** `{"email": "...", "password": "..."}`  
+    -   **Request Body (JSON):** `{"email": "...", "password": "..."}`
     -   **Response (200 OK):** `{"token": "your_jwt_token_here"}`
 
 #### Posts
@@ -104,6 +105,30 @@ RESTful API for a blog platform, developed with Node.js, TypeScript, and Express
 
 *All private routes require an `Authorization` header in the format: `Authorization: Bearer YOUR_TOKEN_HERE`*
 
+#### User Profile
 -   **`GET /profile`**
     -   **Description:** Returns information about the logged-in user (contained in the token payload).
     -   **Response (200 OK):** `{"id": "...", "name": "...", "iat": ..., "exp": ...}`
+
+#### Posts
+-   **`POST /posts`**
+    -   **Description:** Creates a new post for the authenticated user.
+    -   **Request Body (JSON):** `{"title": "...", "content": "..."}` (The author is inferred from the token).
+    -   **Response (201 Created):** Returns the newly created post object.
+
+-   **`PUT /posts/:id`**
+    -   **Description:** Updates an existing post. The user must be the author of the post.
+    -   **URL Parameters:** `id` - The ID of the post to update.
+    -   **Request Body (JSON):** `{"title": "...", "content": "..."}` (Fields are optional).
+    -   **Responses:**
+        -   **200 OK:** Returns the updated post object.
+        -   **403 Forbidden:** `{"message":"Ação não autorizada."}`
+        -   **404 Not Found:** `{"message":"Post não encontrado."}`
+
+-   **`DELETE /posts/:id`**
+    -   **Description:** Deletes an existing post. The user must be the author of the post.
+    -   **URL Parameters:** `id` - The ID of the post to delete.
+    -   **Responses:**
+        -   **204 No Content:** Indicates successful deletion with no response body.
+        -   **403 Forbidden:** `{"message":"Ação não autorizada."}`
+        -   **404 Not Found:** `{"message":"Post não encontrado."}`

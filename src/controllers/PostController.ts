@@ -45,7 +45,7 @@ export const postController = {
       return res.status(200).json(post)
 
     } catch (error: any) {
-      if (error.message === 'Post não encontrado.') {
+      if (error.message === 'Post not found.') {
         return res.status(404).json({ message: error.message });
       }
 
@@ -61,23 +61,23 @@ export const postController = {
       const { title, content } = req.body;
 
       if (!authorId) {
-        return res.status(403).json({ message: "Ação não autorizada." });
+        return res.status(403).json({ message: "Unauthorized action." });
       }
 
       const updatedPost = await postService.updatePost(id, authorId, { title, content });
       return res.status(200).json(updatedPost);
 
     } catch (error: any) {
-      if (error.message === 'Post não encontrado.') {
+      if (error.message === 'Post not found.') {
         return res.status(404).json({ message: error.message });
       }
 
-      if (error.message === 'Ação não autorizada.') {
+      if (error.message === 'Unauthorized action.') {
         return res.status(403).json({ message: error.message });
       }
 
       console.error("Erro ao atualizar post:", error);
-      return res.status(500).json({ message: "Ocorreu um erro inesperado." });
+      return res.status(500).json({ message: "An unexpected error has occurred." });
     }
   },
 
@@ -87,22 +87,22 @@ export const postController = {
       const authorId = req.user?.id;
 
       if (!authorId) {
-        return res.status(403).json({ message: "Ação não autorizada." });
+        return res.status(403).json({ message: "Unauthorized action." });
       }
 
       await postService.deletePost(id, authorId);
       return res.status(204).send();
 
     } catch (error: any) {
-      if (error.message === 'Post não encontrado.') {
+      if (error.message === 'Post not found.') {
         return res.status(404).json({ message: error.message });
       }
 
-      if (error.message === 'Ação não autorizada.') {
+      if (error.message === 'Unauthorized action.') {
         return res.status(403).json({ message: error.message });
       }
       console.error("Erro ao deletar post:", error);
-      return res.status(500).json({ message: "Ocorreu um erro inesperado." });
+      return res.status(500).json({ message: "An unexpected error has occurred." });
     }
   }
 }

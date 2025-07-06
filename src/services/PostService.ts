@@ -40,7 +40,7 @@ export const postService = {
     try {
       const foundPostById = await postRepository.findById(id);
       if (!foundPostById) {
-        throw new Error('Post não encontrado.')
+        throw new Error('Post not found.')
       }
       return foundPostById;
     } catch (error) {
@@ -52,12 +52,12 @@ export const postService = {
     try {
       const posts = await postRepository.findById(id);
       if (!posts) {
-        throw new Error('Post não encontrado.')
+        throw new Error('Post not found.')
       }
 
       const authorId = posts.author._id.toString();
       if (authorId !== userId) {
-        throw new Error('Ação não autorizada.');
+        throw new Error('Unauthorized action.');
       }
 
       const updatePost = await postRepository.updateById(id, data);
@@ -72,12 +72,12 @@ export const postService = {
     try {
       const post = await postRepository.findById(id);
       if(!post) {
-        throw new Error('Post não encontrado.')
+        throw new Error('Post not found.')
       }
 
       const authorId = post.author._id.toString();
       if (authorId !== userId) {
-        throw new Error('Ação não autorizada.');
+        throw new Error('Unauthorized action.');
       }
 
       const deletedPost = await postRepository.deleteById(id);
