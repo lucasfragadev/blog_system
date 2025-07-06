@@ -9,7 +9,6 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
 
-
 const startServer = async () => {
   // Connect to the database and wait for the connection to be established.
   await connectDB();
@@ -21,14 +20,23 @@ const startServer = async () => {
   app.use(express.json()); // Middleware to teach Express to read the request body in JSON.
   app.use(cors());
   
+  app.get('/', (req, res) => {
+    res.json({
+      status: 'online',
+      message: 'Welcome to the Blog API!',
+      documentation: `http://localhost:${PORT}/api-docs`
+    });
+  });
+  
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   
-  app.use(routes); // Tells the application to use the router we imported.
+  app.use('/api/v1', routes); // Tells the application to use the router we imported.
+
   app.listen(PORT, () => {
     console.log(`The server is running on PORT: ${PORT}!`)
     console.log(`Access directly at: http://localhost:${PORT}`)
+    console.log(`Access API Documentation http://localhost:${PORT}/api-docs`)
   });
 };
 
 startServer();
-
