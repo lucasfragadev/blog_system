@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog | API</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
+</head>
+
+<body>
+
+    <header>
+        <h1>Blog</h1>
+    </header>
+
+    <main>
+        <section id="posts-section">
+            <h2>Últimos Posts</h2>
+            <div id="posts-container">
+                <p>Carregando posts...</p>
+            </div>
+        </section>
+
+        <hr>
+
+        <section id="forms-section">
+            <h2>Área do Usuário</h2>
+            <form id="login-form">
+                <h3>Login</h3>
+                <input type="email" id="login-email" placeholder="Seu e-mail" required>
+                <input type="password" id="login-password" placeholder="Sua senha" required>
+                <button type="submit">Entrar</button>
+            </form>
+            <hr>
+
+            <form id="create-post-form">
+                <h3>Criar Novo Post</h3>
+                <input type="text" id="post-title" placeholder="Título do post" required>
+                <textarea id="post-content" placeholder="Escreva seu post aqui..." rows="5" required></textarea>
+                <button type="submit">Publicar</button>
+            </form>
+
+            <button id="logout-button" style="margin-top: 1rem;">Sair (Logout)</button>
+        </section>
+    </main>
+
+</body>
+
+</html>
