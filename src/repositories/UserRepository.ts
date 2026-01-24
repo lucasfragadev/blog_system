@@ -1,39 +1,31 @@
-import UserModel from "../models/User";
-import { IUser } from "../models/User"; // Importing the Interface;
+import { prisma } from '../config/prisma';
+import { User } from '@prisma/client'; 
 
-// Interface that defines the data needed to create the user.
-// We do not include 'createdAt' as the bank will generate this automatically;
+export class UserRepository {
+  // Criar Usuário
+  async create(data: { name: string; email: string; password: string }): Promise<User> {
+    const user = await prisma.user.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+      },
+    });
+    return user;
+  }
 
-interface ICreateUserData {
-  name: string;
-  email: string;
-  password: string;
+  // Buscar por Email
+  async findByEmail(email: string): Promise<User | null> {
+    // findUnique é muito rápido e exige que o campo seja @unique no schema
+    return await prisma.user.findUnique({
+      where: { email },
+    });
+  }
+
+  // Buscar por ID
+  async findById(id: string): Promise<User | null> {
+    return await prisma.user.findUnique({
+      where: { id },
+    });
+  }
 }
-
-export const userRepository = {
-  /**
-   * @description Creates a new user in the database.
-   * @param userData - The user data to be created.
-   * @returns The newly created user.
-   */
-
-  create: async (userData: ICreateUserData): Promise<IUser> => { // "create" é um método
-    try {
-      const newUser = await UserModel.create(userData);
-      return newUser;
-    } catch (error) {
-      console.error("Error creating user in repository:", error);
-      throw error; // This is used to throw the error so that the service layer can capture it.;
-    }
-  },
-
-  findByEmail: async (email: string): Promise<IUser | null> => {
-    try {
-      const foundUser = await UserModel.findOne({ email });
-      return foundUser;
-    } catch (error) {
-      console.error("Error searching for email:", error);
-      throw error;
-    }
-  },
-};

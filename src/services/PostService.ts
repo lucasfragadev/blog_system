@@ -1,90 +1,67 @@
-import { postRepository } from "../repositories/PostRepository";
-import { IPost } from "../models/Post";
+import { PostRepository } from '../repositories/PostRepository';
 
-interface ICreatePostData {
-  title: string;
-  content: string;
-  authorId: string;
-}
+// Instanciamos o repositório (pois agora ele é uma Class)
+const postRepository = new PostRepository();
 
 export const postService = {
-  /**
-   * @description Handles the business logic for creating a new post.
-   * @param postData - Post data.
-   * @returns The newly created post.
-   */
-  create: async (postData: ICreatePostData): Promise<IPost> => {
-    try {
-      const dataForRepo = {
-        title: postData.title,
-        content: postData.content,
-        author: postData.authorId,
-      };
-      const newPost = await postRepository.create(dataForRepo);
-      return newPost;
-    } catch (error) {
-      throw error;
-    }
+  
+  // CRIAR
+  create: async (data: { title: string; content: string; authorId: string }) => {
+    // Passamos direto para o repositório do Prisma
+    const newPost = await postRepository.create({
+      title: data.title,
+      content: data.content,
+      authorId: data.authorId,
+    });
+    return newPost;
   },
 
-  findAll: async (): Promise<IPost[]> => {
-    try {
-      const posts = await postRepository.findAll();
-      return posts;
-    } catch (error) {
-      throw error;
-    }
+  // LISTAR TODOS
+  findAll: async () => {
+    return await postRepository.findAll();
   },
 
-  getPostById: async (id: string): Promise<IPost> => {
-    try {
-      const foundPostById = await postRepository.findById(id);
-      if (!foundPostById) {
-        throw new Error('Post not found.')
-      }
-      return foundPostById;
-    } catch (error) {
-      throw error;
+  // BUSCAR POR ID
+  getPostById: async (id: string) => {
+    const post = await postRepository.findById(id);
+    if (!post) {
+      throw new Error('Post not found.');
     }
+    return post;
   },
 
-  updatePost: async (id: string, userId: string, data: { title?: string, content?: string }): Promise<IPost | null> => {
-    try {
-      const posts = await postRepository.findById(id);
-      if (!posts) {
-        throw new Error('Post not found.')
-      }
-
-      const authorId = posts.author._id.toString();
-      if (authorId !== userId) {
-        throw new Error('Unauthorized action.');
-      }
-
-      const updatePost = await postRepository.updateById(id, data);
-      return updatePost;
-
-    } catch (error) {
-      throw error;
+  // ATUALIZAR (Com verificação de dono)
+  updatePost: async (id: string, userId: string, data: { title?: string; content?: string }) => {
+    // 1. Busca o post
+    const post = await postRepository.findById(id);
+    
+    if (!post) {
+      throw new Error('Post not found.');
     }
+
+    // 2. Verifica autoria
+    // No Prisma, o ID do autor fica direto em 'authorId'. 
+    // Não precisamos de ._id ou .toString()
+    if (post.authorId !== userId) {
+      throw new Error('Unauthorized action.');
+    }
+
+    // 3. Atualiza
+    return await postRepository.update(id, data);
   },
 
-  deletePost: async (id: string, userId: string): Promise<IPost | null> => {
-    try {
-      const post = await postRepository.findById(id);
-      if(!post) {
-        throw new Error('Post not found.')
-      }
+  // DELETAR (Com verificação de dono)
+  deletePost: async (id: string, userId: string) => {
+    const post = await postRepository.findById(id);
 
-      const authorId = post.author._id.toString();
-      if (authorId !== userId) {
-        throw new Error('Unauthorized action.');
-      }
-
-      const deletedPost = await postRepository.deleteById(id);
-      return deletedPost;
-
-    } catch (error) {
-      throw error;
+    if (!post) {
+      throw new Error('Post not found.');
     }
+
+    if (post.authorId !== userId) {
+      throw new Error('Unauthorized action.');
+    }
+
+    return await postRepository.delete(id);
   }
 };

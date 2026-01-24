@@ -7,8 +7,8 @@ info:
   description: API to manage users and blog posts, with a modular route structure.
   version: 1.0.0
   contact:
-    name: Your Name
-    email: your.email@example.com
+    name: Lucas Avelino Fraga
+    email: lucasfraga.dev@gmail.com
 
 # Servers where the API is available
 servers:
@@ -88,7 +88,7 @@ components:
 # Definition of all API endpoints
 paths:
   #--- Authentication Routes ---
-  /api/v1/auth/register:
+  /auth/register:
     post:
       tags: [Authentication]
       summary: Register a new user
@@ -101,7 +101,7 @@ paths:
         '201': { description: 'User successfully created', content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
         '400': { description: 'Invalid input data', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '409': { description: 'Email already registered', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-  /api/v1/auth/login:
+  /auth/login:
     post:
       tags: [Authentication]
       summary: Authenticate a user
@@ -116,7 +116,7 @@ paths:
         '401': { description: 'Invalid credentials', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
   #--- User Routes ---
-  /api/v1/users/me:
+  /users/me:
     get:
       tags: [Users]
       summary: Get the logged-in user's profile
@@ -128,7 +128,7 @@ paths:
         '401': { description: 'Unauthorized. Invalid or missing token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
   #--- Post Routes ---
-  /api/v1/posts:
+  /posts:
     get:
       tags: [Posts]
       summary: List all posts
@@ -150,7 +150,7 @@ paths:
         '201': { description: 'Post successfully created', content: { application/json: { schema: { $ref: '#/components/schemas/Post' } } } }
         '400': { description: 'Invalid input data', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: 'Unauthorized', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-  /api/v1/posts/{id}:
+  /posts/{id}:
     get:
       tags: [Posts]
       summary: Fetch a post by ID

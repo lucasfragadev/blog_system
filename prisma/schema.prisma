@@ -1,0 +1,38 @@
+// Define o gerador do cliente (quem cria o código JS/TS)
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Define o banco de dados
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de Usuário (Antigo UserSchema)
+model User {
+  id        String   @id @default(uuid()) // Usamos UUID para parecer com o ID do Mongo (string)
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  // Relacionamento: Um usuário tem vários Posts
+  posts     Post[]
+
+  @@map("users") // Nome da tabela no banco
+}
+
+// Modelo de Post (Antigo PostSchema)
+model Post {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+
+  // Relacionamento: Todo post tem um autor
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@map("posts") // Nome da tabela no banco
+}

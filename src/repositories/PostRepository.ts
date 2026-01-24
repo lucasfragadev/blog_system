@@ -1,85 +1,68 @@
-import mongoose, { Types } from "mongoose";
-import PostModel, { IPost } from "../models/Post";
+import { prisma } from '../config/prisma';
+import { Post } from '@prisma/client';
 
-interface ICreatePostData {
-  title: string;
-  content: string;
-  author: Types.ObjectId | string;
-}
+export class PostRepository {
+  
+  // Criar Post
+  async create(data: { title: string; content: string; authorId: string }): Promise<Post> {
+    const post = await prisma.post.create({
+      data: {
+        title: data.title,
+        content: data.content,
+        authorId: data.authorId,
+      },
+    });
+    return post;
+  }
 
-export const postRepository = {
-  /**
-   * @description Creates a new post in the database.
-   * @param postData - The post data to be created.
-   * @returns The newly created post.
-   */
-  create: async (postData: ICreatePostData): Promise<IPost> => {
-    try {
-      const newPost = await PostModel.create(postData);
-      return newPost;
-    } catch (error) {
-      console.error("Error creating post in repository:", error);
-      throw error;
-    }
-  },
+  // Listar todos os posts (Com dados do Autor!)
+  async findAll(): Promise<Post[]> {
+    return await prisma.post.findMany({
+      orderBy: {
+        createdAt: 'desc', // Ordena do mais novo para o mais antigo
+      },
+      include: {
+        author: {
+          select: {
+            name: true,
+            email: true,
+            // NÃO incluímos 'password' aqui por segurança
+          },
+        },
+      },
+    });
+  }
 
-  findAll: async (): Promise<IPost[]> => {
-    try {
-      const posts = await PostModel.find().populate('author', 'name email').sort({ createdAt: -1 });
-      return posts;
-    } catch (error) {
-      console.error("Error fetching posts:", error);
-      throw error;
-    }
-  },
+  // Buscar um post específico pelo ID
+  async findById(id: string): Promise<Post | null> {
+    return await prisma.post.findUnique({
+      where: { id },
+      include: {
+        author: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+  }
 
-  findById: async (id: string): Promise<IPost | null> => {
-    try {
+  // Atualizar Post
+  async update(id: string, data: { title?: string; content?: string }): Promise<Post> {
+    return await prisma.post.update({
+      where: { id },
+      data: {
+        title: data.title,
+        content: data.content,
+      },
+    });
+  }
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return null;
-      }
-
-      const foundPost = await PostModel.findById(id).populate('author', 'name email')
-      return foundPost;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  updateById: async (id: string, data: { title?: string, content?: string }): Promise<IPost | null> => {
-    try {
-
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return null;
-      }
-
-      const updatePost = await PostModel.findByIdAndUpdate(
-        id, 
-        data, 
-        { new: true}
-      );
-
-      return updatePost;
-    } catch (error) {
-      console.error("Error updating post:", error);
-      throw error;
-    }
-  },
-
-  deleteById: async (id: string): Promise<IPost | null> => {
-    try {
-      if(!mongoose.Types.ObjectId.isValid(id)) {
-        return null;
-      }
-
-      const deletePost = await PostModel.findByIdAndDelete(id);
-      return deletePost;
-      
-    } catch (error) {
-      console.error("Error deleting post:", error);
-      throw error;
-      
-    }
+  // Deletar Post
+  async delete(id: string): Promise<Post> {
+    return await prisma.post.delete({
+      where: { id },
+    });
   }
 }
