@@ -1,9 +1,8 @@
 import { Request, Response } from 'express';
 import { postService } from '../services/PostService';
-import { AuthRequest } from '../middlewares/authMiddleware';
 
 export const postController = {
-  create: async (req: AuthRequest, res: Response) => {
+  create: async (req: Request, res: Response) => {
     const { title, content } = req.body;
 
     const authorId = req.user?.id;

@@ -1,4 +1,4 @@
-// Define o gerador do cliente (quem cria o código JS/TS)
+// Define o gerador do cliente
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,30 +9,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Modelo de Usuário (Antigo UserSchema)
+// Modelo de Usuário
 model User {
-  id        String   @id @default(uuid()) // Usamos UUID para parecer com o ID do Mongo (string)
+  id        String   @id @default(uuid())
   name      String
   email     String   @unique
   password  String
   createdAt DateTime @default(now())
 
-  // Relacionamento: Um usuário tem vários Posts
+  // Relacionamentos
   posts     Post[]
+  comments  Comment[]
 
-  @@map("users") // Nome da tabela no banco
+  @@map("users")
 }
 
-// Modelo de Post (Antigo PostSchema)
+// Modelo de Post
 model Post {
   id        String   @id @default(uuid())
   title     String
   content   String
   createdAt DateTime @default(now())
 
-  // Relacionamento: Todo post tem um autor
+  // Relacionamento com Autor
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
 
-  @@map("posts") // Nome da tabela no banco
+  // Relacionamento com Comentários
+  comments  Comment[]
+
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  // Quem escreveu?
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+
+  // Em qual post?
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("comments") // Boa prática: manter o padrão de nomes de tabela
 }

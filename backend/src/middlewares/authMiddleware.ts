@@ -1,31 +1,24 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-// We extend Express's Request interface to add our 'user' property,
-// which will contain the decoded payload of the token.
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  let token = req.cookies?.token;
 
-export interface AuthRequest extends Request {
-  user?: { id: string; name: string }
-}
-
-export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
-    return res.status(401).json({ message: 'Access Denied. Token not provided.' })
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
   }
 
-  const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0] !== 'Bearer') {
-    return res.status(401).json({ message: 'Token format error.' })
+  if (!token) {
+    return res.status(401).json({ message: 'Access Denied. Token not provided.' });
   }
-
-  const token = parts[1];
 
   try {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
-      throw new Error('The JWT secret key was not configured in the environment.');
+      throw new Error('JWT Secret not configured');
     }
 
     const decoded = jwt.verify(token, secret);
@@ -34,6 +27,22 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
     return next();
   } catch (err) {
-    return res.status(401).json({ message: 'Invalid or expired token.' })
+    console.error('Auth middleware error:', err);
+    
+    if (err instanceof jwt.JsonWebTokenError) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: 'Token expired.' });
+      }
+      if (err.name === 'JsonWebTokenError') {
+        return res.status(401).json({ message: 'Invalid token format.' });
+      }
+    }
+    
+    if (err instanceof Error && err.message === 'JWT Secret not configured') {
+      console.error('CRITICAL: JWT_SECRET environment variable not set');
+      return res.status(500).json({ message: 'Server configuration error.' });
+    }
+    
+    return res.status(401).json({ message: 'Invalid or expired token.' });
   }
 };

@@ -1,19 +1,15 @@
-import express from 'express'; // Import Express.
+import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
-import routes from './routes'; // Import the main server.
+import routes from './routes/index';
 import { prisma } from './config/prisma';
-
-
 import YAML from 'yamljs';
+import cookieParser from 'cookie-parser';
 
 dotenv.config();
 
 const startServer = async () => {
-  // --- MUDANÇA AQUI ---
-  // Removemos o 'await connectDB()' pois ele usava Mongoose.
-  // Adicionamos a verificação de conexão do Prisma:
   try {
     await prisma.$connect();
     console.log('✅ [INFO] Database (Postgres) connected successfully via Prisma');
@@ -21,17 +17,19 @@ const startServer = async () => {
     console.error('❌ [ERROR] Failed to connect to database:', error);
     process.exit(1); // Encerra se não conseguir conectar
   }
-  // --------------------
   
   const app = express(); 
   const PORT = 3000;
 
-  // Carrega o YAML conforme sua configuração atual
-  // Certifique-se que o arquivo 'openapi.yaml' existe na raiz
   const swaggerDocument = YAML.load('./openapi.yaml');
 
-  app.use(express.json()); // Middleware to teach Express to read the request body in JSON.
-  app.use(cors());
+  app.use(express.json());
+  app.use(cookieParser());
+  
+  app.use(cors({
+    origin: 'http://localhost:3001',
+    credentials: true,
+  }));
   
   app.get('/', (req, res) => {
     res.json({
