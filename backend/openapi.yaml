@@ -3,201 +3,231 @@ openapi: 3.0.0
 
 # General information about your API
 info:
-  title: Blog API
-  description: API to manage users and blog posts, with a modular route structure.
-  version: 1.0.0
+  title: Blog de Estudos API
+  description: API RESTful completa para sistema de blog com autenticação JWT (HttpOnly Cookies), controle de acesso (RBAC), comentários e suporte a banco relacional (PostgreSQL).
+  version: 1.1.0
   contact:
-    name: Lucas Avelino Fraga
-    email: lucasfraga.dev@gmail.com
+    name: Seu Nome
+    email: seu.email@exemplo.com
 
 # Servers where the API is available
 servers:
   - url: http://localhost:3000/api/v1
-    description: Local development server
+    description: Servidor de Desenvolvimento Local
 
 # Definition of Tags used to group endpoints
 tags:
   - name: Authentication
-    description: Operations for user registration and login.
+    description: Registro e Login de usuários.
   - name: Users
-    description: Operations related to user profiles.
+    description: Perfil de usuários.
   - name: Posts
-    description: Operations for creating, reading, updating, and deleting posts.
+    description: CRUD de publicações.
+  - name: Comments
+    description: Gerenciamento de comentários.
 
 # Definition of Schemas and Security Schemes
 components:
   securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
       description: |
-        JWT authentication token. To authenticate, provide the token in the `Authorization` header with the "Bearer" prefix.
-        Example: `Authorization: Bearer <your-jwt-token>`
+        A API utiliza Cookies HttpOnly para navegadores. Para testes manuais (Postman/Insomnia), você pode enviar o cabeçalho Authorization.
+
   schemas:
     User:
       type: object
-      description: Representation of a user in the system.
       properties:
-        _id: { type: string, example: '65e8c8a8b2c9b4e4b3e8e8a0' }
-        name: { type: string, example: 'John Doe' }
-        email: { type: string, format: email, example: 'john.doe@example.com' }
-        createdAt: { type: string, format: date-time, readOnly: true }
+        id: { type: string, format: uuid, example: '550e8400-e29b-41d4-a716-446655440000' }
+        name: { type: string, example: 'Lucas Avelino' }
+        email: { type: string, format: email, example: 'lucas@exemplo.com' }
+        role: { type: string, enum: [USER, ADMIN], example: 'USER' }
+        createdAt: { type: string, format: date-time }
+    
     UserCreate:
       type: object
-      description: Data required to register a new user.
       properties:
-        name: { type: string, example: 'John Doe' }
-        email: { type: string, format: email, example: 'john.doe@example.com' }
-        password: { type: string, format: password, example: 'S3nh@F0rt3!', writeOnly: true }
+        name: { type: string, example: 'Lucas Avelino' }
+        email: { type: string, format: email, example: 'lucas@exemplo.com' }
+        password: { type: string, format: password, example: 'SenhaForte123!', writeOnly: true }
       required: [name, email, password]
+    
     Post:
       type: object
-      description: Representation of a post in the system.
       properties:
-        _id: { type: string, example: '65e8c9d7b2c9b4e4b3e8e8a4' }
-        title: { type: string, example: 'My First Post' }
-        content: { type: string, example: 'This is the content...' }
-        author: { type: string, example: '65e8c8a8b2c9b4e4b3e8e8a0' }
-        createdAt: { type: string, format: date-time, readOnly: true }
+        id: { type: string, format: uuid, example: 'a1b2c3d4-e5f6-7890-1234-567890abcdef' }
+        title: { type: string, example: 'Arquitetura MVC com Node.js' }
+        content: { type: string, example: 'Conteúdo detalhado sobre MVC...' }
+        authorId: { type: string, format: uuid }
+        author: { $ref: '#/components/schemas/User' }
+        createdAt: { type: string, format: date-time }
+    
     PostCreate:
       type: object
-      description: Data required to create or update a post.
       properties:
-        title: { type: string, example: 'Post Title' }
-        content: { type: string, example: 'Post content...' }
+        title: { type: string, example: 'Título do Post' }
+        content: { type: string, example: 'Conteúdo em Markdown...' }
       required: [title, content]
+
+    Comment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        content: { type: string, example: 'Ótimo artigo!' }
+        authorId: { type: string, format: uuid }
+        postId: { type: string, format: uuid }
+        author: { type: object, properties: { name: { type: string } } }
+        createdAt: { type: string, format: date-time }
+
+    CommentCreate:
+      type: object
+      properties:
+        content: { type: string, example: 'Meu comentário aqui' }
+        postId: { type: string, format: uuid }
+      required: [content, postId]
+
     AuthLogin:
       type: object
-      description: Credentials required for login.
       properties:
-        email: { type: string, format: email, example: 'john.doe@example.com' }
-        password: { type: string, format: password, example: 'S3nh@F0rt3!' }
+        email: { type: string, format: email, example: 'lucas@exemplo.com' }
+        password: { type: string, format: password, example: 'SenhaForte123!' }
       required: [email, password]
-    AuthToken:
+      
+    AuthResponse:
       type: object
-      description: Authentication token returned after login.
       properties:
-        token: { type: string, example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' }
+        message: { type: string, example: 'Login successful' }
+        user: { $ref: '#/components/schemas/User' }
+
     Error:
       type: object
-      description: Standard structure for error messages.
       properties:
-        message: { type: string, example: 'Descriptive error message.' }
+        message: { type: string, example: 'Mensagem de erro descritiva.' }
 
 # Definition of all API endpoints
 paths:
-  #--- Authentication Routes ---
+  #--- AUTHENTICATION ---
   /auth/register:
     post:
       tags: [Authentication]
-      summary: Register a new user
-      description: Creates a new user account in the system. This route is public.
+      summary: Registrar novo usuário
       requestBody:
         required: true
         content:
           application/json: { schema: { $ref: '#/components/schemas/UserCreate' } }
       responses:
-        '201': { description: 'User successfully created', content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
-        '400': { description: 'Invalid input data', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '409': { description: 'Email already registered', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '201': { description: 'Criado com sucesso' }
+        '400': { description: 'Dados inválidos' }
+        '409': { description: 'Email já existe' }
+  
   /auth/login:
     post:
       tags: [Authentication]
-      summary: Authenticate a user
-      description: Authenticates with email and password, returning a JWT token. This route is public.
+      summary: Login
+      description: Retorna dados do usuário e define Cookie HttpOnly.
       requestBody:
         required: true
         content:
           application/json: { schema: { $ref: '#/components/schemas/AuthLogin' } }
       responses:
-        '200': { description: 'Successful authentication', content: { application/json: { schema: { $ref: '#/components/schemas/AuthToken' } } } }
-        '400': { description: 'Email and password are required', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { description: 'Invalid credentials', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '200': { description: 'Sucesso', content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' } } } }
+        '401': { description: 'Credenciais inválidas' }
 
-  #--- User Routes ---
-  /users/me:
-    get:
-      tags: [Users]
-      summary: Get the logged-in user's profile
-      description: Returns the information of the authenticated user. Requires authentication token.
-      security:
-        - BearerAuth: []
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout
+      description: Limpa o cookie de autenticação.
       responses:
-        '200': { description: 'User profile returned', content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
-        '401': { description: 'Unauthorized. Invalid or missing token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '200': { description: 'Logout realizado' }
 
-  #--- Post Routes ---
+  #--- POSTS ---
   /posts:
     get:
       tags: [Posts]
-      summary: List all posts
-      description: Returns a list of all public posts in the system. This route is public.
+      summary: Listar todos os posts
       responses:
-        '200': { description: 'Post list successfully returned', content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Post' } } } } }
-        '500': { description: 'Unexpected server error', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '200': { content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Post' } } } } }
     post:
       tags: [Posts]
-      summary: Create a new post
-      description: Creates a new post associated with the authenticated user. Requires authentication token.
-      security:
-        - BearerAuth: []
+      summary: Criar post
+      security: [{ cookieAuth: [] }]
       requestBody:
         required: true
         content:
           application/json: { schema: { $ref: '#/components/schemas/PostCreate' } }
       responses:
-        '201': { description: 'Post successfully created', content: { application/json: { schema: { $ref: '#/components/schemas/Post' } } } }
-        '400': { description: 'Invalid input data', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { description: 'Unauthorized', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '201': { description: 'Criado' }
+        '401': { description: 'Não autorizado' }
+
   /posts/{id}:
     get:
       tags: [Posts]
-      summary: Fetch a post by ID
-      description: Returns the details of a specific post. This route is public.
+      summary: Obter post único
       parameters:
         - name: id
           in: path
           required: true
-          description: ID of the post to fetch.
           schema: { type: string }
       responses:
-        '200': { description: 'Post found', content: { application/json: { schema: { $ref: '#/components/schemas/Post' } } } }
-        '404': { description: 'Post not found', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Post' } } } }
+        '404': { description: 'Não encontrado' }
     put:
       tags: [Posts]
-      summary: Update an existing post
-      description: Updates a post. The user can only update their own posts. Requires authentication token.
-      security:
-        - BearerAuth: []
+      summary: Editar post
+      security: [{ cookieAuth: [] }]
       parameters:
         - name: id
           in: path
           required: true
-          description: ID of the post to update.
           schema: { type: string }
       requestBody:
         content:
           application/json: { schema: { $ref: '#/components/schemas/PostCreate' } }
       responses:
-        '200': { description: 'Post successfully updated', content: { application/json: { schema: { $ref: '#/components/schemas/Post' } } } }
-        '401': { description: 'Unauthorized', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { description: 'Action not authorized (user is not the author)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '404': { description: 'Post not found', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '200': { description: 'Atualizado' }
+        '403': { description: 'Proibido (Não é o autor)' }
     delete:
       tags: [Posts]
-      summary: Delete a post
-      description: Deletes an existing post. The user can only delete their own posts. Requires authentication token.
-      security:
-        - BearerAuth: []
+      summary: Deletar post
+      description: Apenas Autor ou ADMIN podem deletar.
+      security: [{ cookieAuth: [] }]
       parameters:
         - name: id
           in: path
           required: true
-          description: ID of the post to delete.
           schema: { type: string }
       responses:
-        '204': { description: 'Post successfully deleted' }
-        '401': { description: 'Unauthorized', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { description: 'Action not authorized (user is not the author)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '404': { description: 'Post not found', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '204': { description: 'Deletado' }
+        '403': { description: 'Proibido' }
+
+  #--- COMMENTS ---
+  /comments:
+    post:
+      tags: [Comments]
+      summary: Criar comentário
+      security: [{ cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/CommentCreate' } }
+      responses:
+        '201': { description: 'Criado', content: { application/json: { schema: { $ref: '#/components/schemas/Comment' } } } }
+
+  /comments/post/{postId}:
+    get:
+      tags: [Comments]
+      summary: Listar comentários de um post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Comment' } } } } }

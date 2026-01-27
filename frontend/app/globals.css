@@ -1,2 +1,12 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+
+@layer base {
+  /* Definição de estilos base para o Body.
+    Garante a transição suave de cores ao alternar entre Light/Dark mode.
+    As classes do Tailwind (bg-gray-50, etc) aplicam as cores de fundo e texto automaticamente.
+  */
+  body {
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 transition-colors duration-300;
+  }
+}

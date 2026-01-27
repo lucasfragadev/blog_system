@@ -1,13 +1,12 @@
 import { PostRepository } from '../repositories/PostRepository';
 
-// Instanciamos o repositório (pois agora ele é uma Class)
+// Instanciamos o repositório
 const postRepository = new PostRepository();
 
 export const postService = {
   
   // CRIAR
   create: async (data: { title: string; content: string; authorId: string }) => {
-    // Passamos direto para o repositório do Prisma
     const newPost = await postRepository.create({
       title: data.title,
       content: data.content,
@@ -17,47 +16,61 @@ export const postService = {
   },
 
   // LISTAR TODOS
-  findAll: async () => {
-    return await postRepository.findAll();
+  async findAll(currentUserId?: string) {
+    // Busca dados brutos do repositório (incluindo arrays relacionais)
+    const posts: any = await postRepository.findAll(currentUserId);
+
+    // Data Transformation:
+    // Adequa o formato do objeto para facilitar o consumo no Frontend.
+    // Transformamos o array de likes em um booleano simples 'isLiked'.
+    return posts.map((post: any) => ({
+      ...post,
+      likeCount: post._count.likes,      
+      isLiked: post.likes?.length > 0    
+    }));
   },
 
   // BUSCAR POR ID
-  getPostById: async (id: string) => {
-    const post = await postRepository.findById(id);
-    if (!post) {
-      throw new Error('Post not found.');
-    }
-    return post;
-  },
-
-  // ATUALIZAR (Com verificação de dono)
-  updatePost: async (id: string, userId: string, data: { title?: string; content?: string }) => {
-    // 1. Busca o post
-    const post = await postRepository.findById(id);
+  async getPostById(id: string, currentUserId?: string) {
+    const post: any = await postRepository.findById(id, currentUserId);
     
     if (!post) {
       throw new Error('Post not found.');
     }
 
-    // 2. Verifica autoria
-    // No Prisma, o ID do autor fica direto em 'authorId'. 
-    // Não precisamos de ._id ou .toString()
+    // Mesma formatação do findAll para manter consistência na API
+    return {
+      ...post,
+      likeCount: post._count.likes,
+      isLiked: post.likes?.length > 0
+    };
+  },
+
+  // ATUALIZAR
+  async updatePost(id: string, userId: string, data: { title?: string; content?: string }) {
+    const post = await postRepository.findById(id); 
+    
+    if (!post) {
+      throw new Error('Post not found.');
+    }
+
+    // Validação de Permissão: Apenas o dono pode alterar
     if (post.authorId !== userId) {
       throw new Error('Unauthorized action.');
     }
 
-    // 3. Atualiza
     return await postRepository.update(id, data);
   },
 
-  // DELETAR (Com verificação de dono)
-  deletePost: async (id: string, userId: string) => {
+  // DELETAR
+  async deletePost(id: string, userId: string) {
     const post = await postRepository.findById(id);
 
     if (!post) {
       throw new Error('Post not found.');
     }
 
+    // Validação de Permissão (Nota: O Controller pode ter logica extra para Admin)
     if (post.authorId !== userId) {
       throw new Error('Unauthorized action.');
     }

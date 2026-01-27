@@ -10,27 +10,36 @@ import cookieParser from 'cookie-parser';
 dotenv.config();
 
 const startServer = async () => {
+  // Conexão com Banco de Dados
   try {
     await prisma.$connect();
-    console.log('✅ [INFO] Database (Postgres) connected successfully via Prisma');
+    console.log('✅ [INFO] Database connected via Prisma');
   } catch (error) {
-    console.error('❌ [ERROR] Failed to connect to database:', error);
-    process.exit(1); // Encerra se não conseguir conectar
+    console.error('❌ [ERROR] Database connection failed:', error);
+    process.exit(1); // Encerra o processo se o banco não subir (Fail Fast)
   }
   
   const app = express(); 
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
+  // Carrega documentação OpenAPI/Swagger
   const swaggerDocument = YAML.load('./openapi.yaml');
 
-  app.use(express.json());
-  app.use(cookieParser());
+  // Middlewares Globais
+  app.use(express.json()); // Parser de JSON no body
+  app.use(cookieParser()); // Parser de Cookies nos headers (Essencial para Auth HttpOnly)
   
+  // Configuração de CORS (Cross-Origin Resource Sharing)
   app.use(cors({
-    origin: 'http://localhost:3001',
-    credentials: true,
+    origin: [
+      'http://localhost:3001',      // Frontend Web Desktop
+      'http://192.168.1.15:3001',   // Frontend via IP (Celular/Rede Local)
+      'http://127.0.0.1:3001',
+    ],
+    credentials: true, // Permite o tráfego de Cookies e Headers de Autorização entre origens
   }));
   
+  // Health Check
   app.get('/', (req, res) => {
     res.json({
       status: 'online',
@@ -39,14 +48,16 @@ const startServer = async () => {
     });
   });
   
+  // Rota de Documentação
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   
-  app.use('/api/v1', routes); // Tells the application to use the router we imported.
+  // Prefixo Global da API (Versioning)
+  app.use('/api/v1', routes);
 
   app.listen(PORT, () => {
-    console.log(`The server is running on PORT: ${PORT}!`)
-    console.log(`Access directly at: http://localhost:${PORT}`)
-    console.log(`Access API Documentation http://localhost:${PORT}/api-docs`)
+    console.log(`🚀 Server running on PORT: ${PORT}`);
+    console.log(`📡 Local Access: http://localhost:${PORT}`);
+    console.log(`📄 Docs: http://localhost:${PORT}/api-docs`);
   });
 };
 

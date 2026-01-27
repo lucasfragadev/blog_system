@@ -9,8 +9,10 @@ export class CommentRepository {
         authorId,
         postId
       },
+      // Include: Retorna o objeto Author imediatamente na criação.
+      // Isso evita ter que fazer uma segunda requisição para atualizar a UI com o nome de quem comentou.
       include: {
-        author: { select: { name: true } } // Já retorna o nome do autor
+        author: { select: { name: true } } 
       }
     });
   }
@@ -18,10 +20,12 @@ export class CommentRepository {
   async findByPostId(postId: string) {
     return await prisma.comment.findMany({
       where: { postId },
-      orderBy: { createdAt: 'desc' }, // Mais recentes primeiro
+      orderBy: { createdAt: 'desc' }, 
       include: {
+        // Projection (Select): Trazemos apenas o necessário do autor para exibir no card.
+        // Importante para não expor dados sensíveis (email, senha, etc) no JSON de resposta.
         author: {
-          select: { id: true, name: true } // Precisamos do nome para exibir
+          select: { id: true, name: true } 
         }
       }
     });

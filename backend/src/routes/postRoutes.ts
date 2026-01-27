@@ -4,12 +4,14 @@ import { authMiddleware } from '../middlewares/authMiddleware';
 
 const postRoutes = Router();
 
-// --- PUBLIC Routes for Posts ---
+// --- Rotas Públicas (Leitura) ---
+// O Controller verifica opcionalmente o token para funcionalidades como "IsLiked",
+// mas o acesso é permitido a visitantes.
 postRoutes.get('/', postController.getAll);
 postRoutes.get('/:id', postController.getById);
 
-// --- PRIVATE Routes for Posts ---
-// The authMiddleware is applied individually here.
+// --- Rotas Protegidas (Escrita) ---
+// Middleware aplicado individualmente para garantir segurança em operações críticas.
 postRoutes.post('/', authMiddleware, postController.create);
 postRoutes.put('/:id', authMiddleware, postController.update);
 postRoutes.delete('/:id', authMiddleware, postController.delete);

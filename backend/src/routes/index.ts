@@ -3,13 +3,16 @@ import authRoutes from './authRoutes';
 import postRoutes from './postRoutes';
 import userRoutes from './userRoutes';
 import commentRoutes from './commentRoutes';
+import likeRoutes from './likeRoutes';
 
 const router = Router();
 
-// Grouping routes by resource, each with its own prefix.
-router.use('/auth', authRoutes);  // -> /api/v1/auth/register, /api/v1/auth/login
-router.use('/posts', postRoutes); // -> /api/v1/posts, /api/v1/posts/:id
-router.use('/users', userRoutes); // -> /api/v1/users/me
-router.use('/comments', commentRoutes); // -> /api/v1/comments, /api/v1/comments/:id
+// Hub central de rotas da API (v1)
+// Aqui definimos os prefixos para cada módulo. Ex: tudo de user será /users/...
+router.use('/auth', authRoutes); 
+router.use('/posts', postRoutes); 
+router.use('/users', userRoutes); 
+router.use('/comments', commentRoutes); 
+router.use('/likes', likeRoutes);
 
 export default router;

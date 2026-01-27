@@ -8,7 +8,8 @@ export const commentController = {
   create: async (req: Request, res: Response) => {
     try {
       const { content, postId } = req.body;
-      const authorId = req.user?.id; // Vem do authMiddleware
+      // O req.user é populado pelo authMiddleware após a validação do token JWT
+      const authorId = req.user?.id; 
 
       if (!authorId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -30,8 +31,10 @@ export const commentController = {
 
     } catch (error: any) {
       console.error('Error listing comments:', error);
+      
       return res.status(500).json({ 
         message: error.message || "Internal Error",
+        // Retorna o stack trace apenas em desenvolvimento para facilitar o debug
         ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
       });
     }

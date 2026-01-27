@@ -15,11 +15,13 @@ model User {
   name      String
   email     String   @unique
   password  String
+  role      String   @default("USER")
   createdAt DateTime @default(now())
 
   // Relacionamentos
   posts     Post[]
   comments  Comment[]
+  likes     Like[]
 
   @@map("users")
 }
@@ -37,6 +39,7 @@ model Post {
 
   // Relacionamento com Comentários
   comments  Comment[]
+  likes     Like[]
 
   @@map("posts")
 }
@@ -54,5 +57,23 @@ model Comment {
   postId    String
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  @@map("comments") // Boa prática: manter o padrão de nomes de tabela
+  @@map("comments")
+}
+
+model Like {
+  createdAt DateTime @default(now())
+
+  // Relacionamento com Usuário
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relacionamento com Post
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Chave Composta: Garante que um par User+Post seja único. 
+  // O usuário não consegue dar 2 likes no mesmo post.
+  @@id([userId, postId]) 
+  
+  @@map("likes")
 }

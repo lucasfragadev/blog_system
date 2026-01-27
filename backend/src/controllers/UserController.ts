@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 const userService = new UserService();
 
 export const userController = {
+  
   create: async (req: Request, res: Response) => {
     const { name, email, password } = req.body;
 
@@ -12,18 +13,22 @@ export const userController = {
       if (!name || !email || !password) {
         return res.status(400).json({ message: "Name, email, and password are required." });
       }
+
       const newUser = await userService.register({ name, email, password });
       return res.status(201).json(newUser);
 
     } catch (error: any) {
+      // Tratamento específico para violação de chave única (Email duplicado) no Prisma
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
            return res.status(409).json({ message: "This email is already registered." });
         }
       }
+      // Fallback para caso o erro venha do Service com essa mensagem
       if (error.message === 'User already exists') {
          return res.status(409).json({ message: "This email is already registered." });
       }
+      
       console.error(error);
       return res.status(500).json({ message: "An unexpected server error occurred." });
     }
@@ -39,12 +44,17 @@ export const userController = {
 
       const result = await userService.login({ email, password });
 
+      // Definição do Cookie HttpOnly (Segurança Crítica)
+      // O token fica invisível para o JavaScript do Frontend (proteção contra XSS)
       res.cookie('token', result.token, {
         httpOnly: true,
+        // Em produção deve ser true (HTTPS). Em dev (HTTP), deve ser false.
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 3600000,
+        maxAge: 3600000, // 1 hora de expiração
+        // 'lax' permite que o cookie seja enviado ao navegar de outro site para este,
+        // mas bloqueia em requisições de terceiros (CSRF parcial)
         sameSite: 'lax',
-        path: '/'
+        path: '/' // Disponível para todas as rotas
       });
 
       return res.status(200).json({ user: result.user });
@@ -60,6 +70,7 @@ export const userController = {
   },
 
   logout: async (req: Request, res: Response) => {
+    // Para limpar o cookie, as opções (path, secure, etc) devem ser IDÊNTICAS às da criação
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -70,6 +81,7 @@ export const userController = {
   },
 
   getProfile: async (req: Request, res: Response) => {
+    // Retorna os dados populados pelo AuthMiddleware, sem precisar ir ao banco novamente
     return res.status(200).json(req.user);
   }
 };

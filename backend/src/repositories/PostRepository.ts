@@ -3,7 +3,6 @@ import { Post } from '@prisma/client';
 
 export class PostRepository {
   
-  // Criar Post
   async create(data: { title: string; content: string; authorId: string }): Promise<Post> {
     const post = await prisma.post.create({
       data: {
@@ -15,40 +14,47 @@ export class PostRepository {
     return post;
   }
 
-  // Listar todos os posts (Com dados do Autor!)
-  async findAll(): Promise<Post[]> {
+  async findAll(currentUserId?: string) {
     return await prisma.post.findMany({
-      orderBy: {
-        createdAt: 'desc', // Ordena do mais novo para o mais antigo
-      },
+      orderBy: { createdAt: 'desc' },
       include: {
         author: {
-          select: {
-            name: true,
-            email: true,
-            // NÃO incluímos 'password' aqui por segurança
-          },
+          select: { name: true, email: true },
         },
+        // Count Relation: Traz a contagem de relacionamentos direto na query principal
+        _count: {
+          select: { comments: true, likes: true }, 
+        },
+        // Conditional Include:
+        // Se currentUserId existir (usuário logado), busca se ele deu like neste post.
+        // Se for undefined (usuário anônimo), passa 'false' e o Prisma ignora essa busca.
+        likes: currentUserId ? {
+          where: { userId: currentUserId },
+          select: { userId: true }
+        } : false
       },
     });
   }
 
-  // Buscar um post específico pelo ID
-  async findById(id: string): Promise<Post | null> {
+  async findById(id: string, currentUserId?: string) {
     return await prisma.post.findUnique({
       where: { id },
       include: {
         author: {
-          select: {
-            name: true,
-            email: true,
-          },
+          select: { name: true, email: true },
         },
+        _count: {
+          select: { comments: true, likes: true },
+        },
+        // Reutiliza a lógica de Conditional Include para verificar o status de 'liked'
+        likes: currentUserId ? {
+          where: { userId: currentUserId },
+          select: { userId: true }
+        } : false
       },
     });
   }
 
-  // Atualizar Post
   async update(id: string, data: { title?: string; content?: string }): Promise<Post> {
     return await prisma.post.update({
       where: { id },
@@ -59,7 +65,6 @@ export class PostRepository {
     });
   }
 
-  // Deletar Post
   async delete(id: string): Promise<Post> {
     return await prisma.post.delete({
       where: { id },

@@ -8,10 +8,13 @@ export class CommentService {
   }
 
   async createComment(content: string, authorId: string, postId: string) {
+    // Validação de Regra de Negócio: Conteúdo não pode ser vazio
     if (!content) {
       throw new Error("Content is required.");
     }
-    // Aqui poderíamos validar se o post existe, mas o Prisma já dá erro se não existir
+    
+    // A integridade referencial (se o post existe) é garantida pelo banco (Foreign Key).
+    // Se o postId for inválido, o Prisma lançará um erro que o Controller captura.
     return await this.commentRepository.create(content, authorId, postId);
   }
 

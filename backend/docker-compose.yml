@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  # Serviço do Banco de Dados
+  # Serviço do PostgreSQL
   db:
-    image: postgres:14.17-alpine
+    image: postgres:14.17-alpine # Versão Alpine é mais leve
     container_name: blog_postgres
     restart: always
     environment:
@@ -11,11 +11,11 @@ services:
       POSTGRES_PASSWORD: admin_password
       POSTGRES_DB: blog_db
     ports:
-      - '5432:5432' 
+      - '5432:5432' # Mapeamento Porta Host : Porta Container
     volumes:
-      - postgres_data:/var/lib/postgresql/data 
-  # Serviço de Interface Gráfica para o Banco (Opcional mas útil)
-  # É como um "Workbench" ou "DBeaver" que roda no navegador
+      - postgres_data:/var/lib/postgresql/data # Persistência: Dados não somem ao reiniciar container
+  
+  # PGAdmin (Interface Gráfica para gerenciar o banco via Browser)
   pgadmin:
     image: dpage/pgadmin4
     container_name: blog_pgadmin
@@ -23,9 +23,10 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: root
     ports:
-      - '5050:80'
+      - '5050:80' # Acessível em http://localhost:5050
     depends_on:
-      - db
+      - db # Só inicia após o banco estar pronto
 
+# Definição dos Volumes
 volumes:
   postgres_data:
