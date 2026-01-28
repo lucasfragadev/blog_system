@@ -18,7 +18,7 @@ export const userController = {
 
     // 1. Validações Iniciais
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "Name, email, and password are required." });
+      return res.status(400).json({ message: "Nome, e-mail e senha são obrigatórios." });
     }
 
     // 2. Validação de Força da Senha (antes de qualquer ação)
@@ -42,11 +42,11 @@ export const userController = {
     } catch(error: any) {
     // Erro de e-mail duplicado no Prisma (Código P2002)
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return res.status(409).json({ message: "This email is already registered." });
+      return res.status(409).json({ message: "Este e-mail já está cadastrado." });
     }
 
     if (error.message === 'User already exists') {
-      return res.status(409).json({ message: "This email is already registered." });
+      return res.status(409).json({ message: "Este e-mail já está cadastrado." });
     }
 
     console.error(error);
