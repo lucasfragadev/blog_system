@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 
 // Metadados para SEO e título da aba do navegador
 export const metadata: Metadata = {
-  title: "Blog de Estudos",
-  description: "Sistema Fullstack desenvolvido para aprendizado de Next.js e Node.js",
+  title: "Avelino&Fraga",
+  description: "Blog da Família Avelino Fraga",
 };
 
 export default function RootLayout({
