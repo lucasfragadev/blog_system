@@ -47,15 +47,12 @@ export const userController = {
       // Definição do Cookie HttpOnly (Segurança Crítica)
       // O token fica invisível para o JavaScript do Frontend (proteção contra XSS)
       res.cookie('token', result.token, {
-        httpOnly: true,
-        // Em produção deve ser true (HTTPS). Em dev (HTTP), deve ser false.
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 3600000, // 1 hora de expiração
-        // 'lax' permite que o cookie seja enviado ao navegar de outro site para este,
-        // mas bloqueia em requisições de terceiros (CSRF parcial)
-        sameSite: 'lax',
-        path: '/' // Disponível para todas as rotas
-      });
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 3600000, 
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/'
+    });
 
       return res.status(200).json({ user: result.user });
 
@@ -72,11 +69,11 @@ export const userController = {
   logout: async (req: Request, res: Response) => {
     // Para limpar o cookie, as opções (path, secure, etc) devem ser IDÊNTICAS às da criação
     res.clearCookie('token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/'
-    });
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    path: '/'
+  });
     return res.status(200).json({ message: "Logout realizado com sucesso." });
   },
 
