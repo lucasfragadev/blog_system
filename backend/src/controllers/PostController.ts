@@ -22,7 +22,7 @@ export const postController = {
     }
   },
 
-  etAll: async (req: Request, res: Response) => {
+  getAll: async (req: Request, res: Response) => {
     try {
       const currentUserId = req.user?.id; 
 
