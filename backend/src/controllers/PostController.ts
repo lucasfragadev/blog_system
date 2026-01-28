@@ -30,8 +30,14 @@ export const postController = {
       
       const formattedPosts = posts.map((post: any) => ({
         ...post,
+        // 1. Mapeamento explícito do contador para o Frontend
+        likeCount: post._count?.likes || 0,
+        commentCount: post._count?.comments || 0,
+        // 2. Transformação do array de likes em booleano
         isLiked: post.likes ? post.likes.length > 0 : false,
-        likes: undefined
+        // 3. Limpeza de dados desnecessários no JSON
+        likes: undefined,
+        _count: undefined
       }));
 
       return res.status(200).json(formattedPosts);
@@ -49,10 +55,17 @@ export const postController = {
       const currentUserId = req.user?.id;
       const post = await postService.getPostById(id, currentUserId);
 
+      if (!post) {
+        return res.status(404).json({ message: 'Post not found.' });
+      }
+
       const formattedPost = {
         ...post,
+        likeCount: post._count?.likes || 0,
+        commentCount: post._count?.comments || 0,
         isLiked: post.likes ? post.likes.length > 0 : false,
-        likes: undefined
+        likes: undefined,
+        _count: undefined
       };
 
       return res.status(200).json(formattedPost);
@@ -119,9 +132,6 @@ export const postController = {
       return res.status(204).send();
 
     } catch (error: any) {
-      if (error.message === 'Post not found.') return res.status(404).json({ message: error.message });
-      if (error.message === 'Unauthorized action.') return res.status(403).json({ message: error.message });
-      
       console.error("Erro ao deletar post:", error);
       return res.status(500).json({ message: "An unexpected error has occurred." });
     }
