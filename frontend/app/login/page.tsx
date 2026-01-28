@@ -46,7 +46,7 @@ export default function LoginPage() {
       alert('Login realizado com sucesso!');
       router.push('/');
       router.refresh(); // Garante que o Header atualize o estado de login
-      
+
     } catch (err: any) {
       setError(err.message);
     }
@@ -55,10 +55,10 @@ export default function LoginPage() {
   return (
     // Centralização vertical e horizontal com fundo adaptável ao tema
     <main className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-950 transition-colors">
-      
+
       {/* Card de Login */}
       <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-md border border-gray-200 dark:border-gray-800 w-full max-w-md transition-all">
-        
+
         <h1 className="text-2xl font-bold mb-6 text-center text-gray-800 dark:text-gray-100">
           Acesse sua conta
         </h1>
@@ -98,6 +98,15 @@ export default function LoginPage() {
               dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-blue-400 transition-colors"
               onChange={handleChange}
             />
+          </div>
+
+          <div className="flex justify-end mb-4">
+            <Link
+              href="/forgot-password"
+              className="text-xs text-gray-500 hover:text-blue-500 transition-colors"
+            >
+              Esqueci minha senha
+            </Link>
           </div>
 
           <button
