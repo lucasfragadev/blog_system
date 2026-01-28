@@ -33,22 +33,31 @@ app.use(cors({
   credentials: true,
 }));
 
-// CONFIGURAÇÃO DO SWAGGER (Versão Anti-Tela-Branca para Vercel)
-const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css";
+// CONFIGURAÇÃO DO SWAGGER (Versão Final "Anti-Tela-Branca" para Vercel)
+// Carregamos absolutamente tudo via CDN para não depender de arquivos locais
+const SWAGGER_ASSETS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5";
+
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
   customCss: '.swagger-ui .topbar { display: none }',
-  customCssUrl: CSS_URL,
+  customCssUrl: `${SWAGGER_ASSETS_URL}/swagger-ui.min.css`,
+  customJs: [
+    `${SWAGGER_ASSETS_URL}/swagger-ui-bundle.js`,
+    `${SWAGGER_ASSETS_URL}/swagger-ui-standalone-preset.js`
+  ],
+  swaggerOptions: {
+    persistAuthorization: true,
+  },
 }));
 
-// ROTA DE BOAS-VINDAS COM STATUS DO BANCO NEON
+// ROTA DE BOAS-VINDAS COM HEALTH CHECK DO NEON
 app.get('/', async (req, res) => {
   let dbStatus = 'offline';
   let dbVersion = 'N/A';
 
   try {
-    // Verifica a conexão e pega a versão do PostgreSQL no Neon
+    // Executa uma query simples para confirmar saúde e versão do banco
     const result = await prisma.$queryRaw<any[]>`SELECT version()`;
-    if (result) {
+    if (result && result.length > 0) {
       dbStatus = 'online';
       dbVersion = result[0].version;
     }
@@ -66,7 +75,7 @@ app.get('/', async (req, res) => {
       provider: 'PostgreSQL (Neon.tech)',
       status: dbStatus,
       version: dbVersion,
-      note: 'Métricas de cluster (requests/CPU) estão disponíveis no painel do Neon.tech'
+      note: 'Métricas de CPU e Requests estão disponíveis no dashboard do Neon.tech'
     },
     owner: 'Lucas Avelino Fraga'
   });
@@ -75,7 +84,7 @@ app.get('/', async (req, res) => {
 // Rotas da API
 app.use('/api/v1', routes);
 
-// Inicialização (Apenas Local)
+// Inicialização (Apenas em ambiente local)
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
   prisma.$connect()
