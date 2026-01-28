@@ -3,7 +3,7 @@ import { UserService } from '../services/UserService';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { emailService } from '../services/EmailService'; // Importação do serviço de e-mail
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 
 const userService = new UserService();
