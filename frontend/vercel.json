@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://avelinofraga-blog.vercel.app/api/v1/:path*"
+    }
+  ]
+}
