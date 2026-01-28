@@ -6,10 +6,14 @@ import routes from './routes/index';
 import { prisma } from './config/prisma';
 import YAML from 'yamljs';
 import cookieParser from 'cookie-parser';
+import path from 'path';
 
 dotenv.config();
 
 const app = express(); 
+
+const swaggerPath = path.join(process.cwd(), 'openapi.yaml');
+const swaggerDocument = YAML.load(swaggerPath);
 
 app.use(express.json()); 
 app.use(cookieParser()); 
@@ -18,7 +22,7 @@ const allowedOrigins = [
   'http://localhost:3001',
   'http://127.0.0.1:3001',
   'http://192.168.1.15:3001',
-  process.env.FRONTEND_URL
+  process.env.FRONTEND_URL 
 ];
 
 app.use(cors({
@@ -32,7 +36,6 @@ app.use(cors({
   credentials: true,
 }));
 
-const swaggerDocument = YAML.load('./openapi.yaml');
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 app.get('/', (req, res) => {
