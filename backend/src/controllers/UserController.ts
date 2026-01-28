@@ -59,7 +59,7 @@ export const userController = {
 
     try {
       if (!email || !password) {
-        return res.status(400).json({ message: "Email and password are required." });
+        return res.status(400).json({ message: "E-mail e senha são obrigatórios." });
       }
 
       const result = await userService.login({ email, password });
@@ -76,7 +76,7 @@ export const userController = {
       return res.status(200).json({ user: result.user });
 
     } catch (error: any) {
-      if (error.message === "Invalid email or password") {
+      if (error.message === "E-mail ou senha inválidos.") {
         return res.status(401).json({ message: "Credenciais inválidas" });
       }
       console.error(error);
