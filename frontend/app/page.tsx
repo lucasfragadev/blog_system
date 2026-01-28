@@ -27,9 +27,13 @@ async function getPosts(): Promise<Post[]> {
     const cookieStore = await cookies();
     const token = cookieStore.get('token');
     
-    const headers: HeadersInit = {};
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
     if (token) {
       headers['Cookie'] = `token=${token.value}`;
+
+      headers['Authorization'] = `Bearer ${token.value}`;
     }
 
     const res = await fetch(`${API_URL}/posts`, { 

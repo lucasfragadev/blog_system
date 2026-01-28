@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { postController } from '../controllers/PostController';
 import { authMiddleware } from '../middlewares/authMiddleware';
-import { optionalAuth } from '../middlewares/optionalAuth'; // Importe o novo middleware
+import { optionalAuth } from '../middlewares/optionalAuth';
 
 const postRoutes = Router();
 
-// --- Rotas Públicas (Leitura) ---
+// --- Rotas Públicas (Agora com Identificação Opcional) ---
 postRoutes.get('/', optionalAuth, postController.getAll);
 postRoutes.get('/:id', optionalAuth, postController.getById);
 
