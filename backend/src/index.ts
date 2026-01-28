@@ -6,14 +6,19 @@ import routes from './routes/index';
 import { prisma } from './config/prisma';
 import YAML from 'yamljs';
 import cookieParser from 'cookie-parser';
-import path from 'path';
+import path from 'node:path';
 
 dotenv.config();
 
 const app = express(); 
 
-const swaggerPath = path.join(process.cwd(), 'openapi.yaml');
-const swaggerDocument = YAML.load(swaggerPath);
+try {
+  const swaggerPath = path.join(process.cwd(), 'openapi.yaml');
+  const swaggerDocument = YAML.load(swaggerPath);
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+} catch (error) {
+  console.error('❌ [ERROR] Failed to load Swagger YAML:', error);
+}
 
 app.use(express.json()); 
 app.use(cookieParser()); 
@@ -35,8 +40,6 @@ app.use(cors({
   },
   credentials: true,
 }));
-
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 app.get('/', (req, res) => {
   res.json({
