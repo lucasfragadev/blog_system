@@ -1,134 +1,73 @@
-# API for Blog
+# A Grande Família Blog - API
 
-RESTful API for a blog platform, developed with Node.js, TypeScript, and Express. The project follows a layered architecture, guided by best practices, and includes a complete authentication system using JSON Web Tokens (JWT).
+Esta é a API RESTful do projeto "A Grande Família Blog", um espaço dedicado ao compartilhamento de momentos e memórias familiares. Desenvolvida com Node.js, TypeScript e Express, a API utiliza uma arquitetura em camadas (Controller, Service, Repository) e segue as melhores práticas de segurança e escalabilidade.
 
-## Technologies Used
+## 🚀 Tecnologias e Ferramentas
 
--   **Backend:** Node.js, Express.js
--   **Language:** TypeScript
--   **Database:** MongoDB with Mongoose (ODM)
--   **Security:**
-    -   `bcryptjs` for password hashing.
-    -   `jsonwebtoken` for token-based authentication.
-    -   `dotenv` for environment variable management.
-    -   `cors` for enabling cross-origin requests.
--   **API Documentation:** Swagger/OpenAPI
+- **Runtime:** Node.js com Express.js
+- **Linguagem:** TypeScript para tipagem estática e segurança de código
+- **ORM:** Prisma (Type-safe Database Client)
+- **Banco de Dados:** PostgreSQL (Hospedado via Neon.tech)
+- **Segurança:**
+  - `bcrypt` para hashing de senhas com validação de complexidade (mínimo 6 caracteres e símbolos).
+  - `jsonwebtoken` (JWT) para autenticação segura via Cookies HttpOnly.
+  - Proteção de rotas privadas e lógica de propriedade (Ownership) de posts.
+- **Comunicação:** Nodemailer para disparos de e-mail (Boas-vindas e Recuperação de Senha via SMTP Gmail).
+- **Hospedagem:** Vercel (Serverless Functions).
 
-## Project Setup
+## 🛠️ Configuração do Ambiente
 
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/seu-usuario/api_blog.git](https://github.com/seu-usuario/api_blog.git)
-    cd api_blog
-    ```
+1. **Instale as dependências:**
+   ```bash
+   npm install
+   ```
 
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
+2. **Variáveis de Ambiente (.env):**
+   Crie um arquivo `.env` na raiz do projeto backend com as seguintes chaves:
+   ```env
+   # Banco de Dados (Neon/PostgreSQL)
+   DATABASE_URL="postgres://usuario:senha@host/db?sslmode=require"
 
-3.  **Configure Environment Variables:**
-    -   Create a `.env` file at the root of the project.
-    -   Add your environment variables, such as the JWT secret key and MongoDB URI.
-    ```env
-    MONGO_URI=mongodb://localhost:27017/blog_api
-    JWT_SECRET=your_super_secret_and_hard_to_guess_key
-    ```
+   # Autenticação (Chave secreta de alta entropia)
+   # Gere uma nova chave usando: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+   JWT_SECRET="insira_sua_chave_secreta_aqui"
 
-## How to Run
+   # Configurações de E-mail (SMTP Gmail)
+   MAIL_HOST="smtp.gmail.com"
+   MAIL_PORT=465
+   MAIL_USER="seu-email@gmail.com"
+   MAIL_PASS="sua_senha_de_app_de_16_digitos"
+   ```
 
-*This project uses the following scripts in `package.json`:*
+3. **Prisma e Banco de Dados:**
+   ```bash
+   npx prisma generate
+   npx prisma migrate dev
+   ```
 
--   **Development Mode (with auto-reload):**
-    ```bash
-    npm run dev
-    ```
+## 📡 Endpoints da API (v1)
 
--   **Production Mode:**
-    ```bash
-    # 1. Compile TypeScript code to JavaScript
-    npm run build
+### Autenticação & Usuários (`/api/v1/auth`)
+- **POST `/register`**: Cria novo usuário e envia e-mail de boas-vindas.
+- **POST `/login`**: Authentica o usuário e define o Cookie HttpOnly `token`.
+- **POST `/logout`**: Realiza o logout limpando o cookie de autenticação.
+- **POST `/forgot-password`**: Gera token de recuperação e envia link por e-mail.
+- **POST `/reset-password`**: Define uma nova senha utilizando o token recebido.
+- **GET `/profile`**: Retorna os dados do perfil do usuário autenticado.
 
-    # 2. Start the server from compiled files
-    npm start
-    ```
+### Postagens (`/api/v1/posts`)
+- **GET `/`**: Lista todos os posts (mais recentes primeiro). Inclui `likeCount` e `isLiked`.
+- **GET `/:id`**: Detalhes de uma postagem específica.
+- **POST `/`**: Cria uma nova postagem (Requer autenticação).
+- **PUT `/:id`**: Atualiza um post existente (Apenas o autor original).
+- **DELETE `/:id`**: Remove um post do banco de dados (Autor ou ADMIN).
 
-## API Endpoints (Current)
+## 🏗️ Arquitetura do Projeto
+O projeto segue o padrão de **Camadas**:
+1. **Routes:** Define os caminhos da API e aplica middlewares de autenticação.
+2. **Controllers:** Gerencia o fluxo de entrada (request) e saída (response) HTTP.
+3. **Services:** Contém as regras de negócio e integrações externas (E-mail).
+4. **Repositories:** Abstrai o acesso ao banco de dados utilizando o Prisma Client.
 
-### Public Routes
-
-#### General
--   **`GET /`**
-    -   **Description:** Welcome route. Returns an API status message.
-    -   **Response (200 OK):** `{"message": "Welcome to the Blog API!"}`
-
-#### Users
--   **`POST /users`**
-    -   **Description:** Creates a new user.
-    -   **Request Body (JSON):** `{"name": "...", "email": "...", "password": "..."}`
-    -   **Response (201 Created):** Returns the new user object (with hashed password).
-
--   **`POST /login`**
-    -   **Description:** Authenticates a user and returns a JWT token.
-    -   **Request Body (JSON):** `{"email": "...", "password": "..."}`
-    -   **Response (200 OK):** `{"token": "your_jwt_token_here"}`
-
-#### Posts
--   **`GET /posts`**
-    -   **Description:** Returns a list of all blog posts, with the most recent first. The post author is "populated" with name and email.
-    -   **Response (200 OK):**
-        ```json
-        [
-          {
-            "_id": "68694bbb703b3369646f5457",
-            "title": "My First Post",
-            "content": "Post content...",
-            "author": {
-              "_id": "6868b78875c0d20eabc5b769",
-              "name": "Author Name",
-              "email": "author@example.com"
-            },
-            "createdAt": "...",
-            "__v": 0
-          }
-        ]
-        ```
-
--   **`GET /posts/:id`**
-    -   **Description:** Fetches and returns a single post by its ID.
-    -   **URL Parameters:** `id` - The ID of the post to be fetched.
-    -   **Responses:**
-        -   **200 OK:** Returns the found post object, with the author populated.
-        -   **404 Not Found:** `{"message": "Post not found."}`
-
-### Private Routes (Require Authentication)
-
-*All private routes require an `Authorization` header in the format: `Authorization: Bearer YOUR_TOKEN_HERE`*
-
-#### User Profile
--   **`GET /profile`**
-    -   **Description:** Returns information about the logged-in user (contained in the token payload).
-    -   **Response (200 OK):** `{"id": "...", "name": "...", "iat": ..., "exp": ...}`
-
-#### Posts
--   **`POST /posts`**
-    -   **Description:** Creates a new post for the authenticated user.
-    -   **Request Body (JSON):** `{"title": "...", "content": "..."}` (The author is inferred from the token).
-    -   **Response (201 Created):** Returns the newly created post object.
-
--   **`PUT /posts/:id`**
-    -   **Description:** Updates an existing post. The user must be the author of the post.
-    -   **URL Parameters:** `id` - The ID of the post to update.
-    -   **Request Body (JSON):** `{"title": "...", "content": "..."}` (Fields are optional).
-    -   **Responses:**
-        -   **200 OK:** Returns the updated post object.
-        -   **403 Forbidden:** `{"message":"Ação não autorizada."}`
-        -   **404 Not Found:** `{"message":"Post não encontrado."}`
-
--   **`DELETE /posts/:id`**
-    -   **Description:** Deletes an existing post. The user must be the author of the post.
-    -   **URL Parameters:** `id` - The ID of the post to delete.
-    -   **Responses:**
-        -   **204 No Content:** Indicates successful deletion with no response body.
-        -   **403 Forbidden:** `{"message":"Ação não autorizada."}`
-        -   **404 Not Found:** `{"message":"Post não encontrado."}`
+---
+Desenvolvido por [**Lucas Avelino Fraga**](https://fraga.vercel.app/) - 2026
