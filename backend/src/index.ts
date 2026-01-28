@@ -11,11 +11,10 @@ dotenv.config();
 
 const app = express(); 
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
 app.use(express.json()); 
 app.use(cookieParser()); 
 
+// Configuração de CORS
 const allowedOrigins = [
   'http://localhost:3001',
   'http://127.0.0.1:3001',
@@ -34,16 +33,49 @@ app.use(cors({
   credentials: true,
 }));
 
-app.get('/', (req, res) => {
+// CONFIGURAÇÃO DO SWAGGER (Versão Anti-Tela-Branca para Vercel)
+const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css";
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customCssUrl: CSS_URL,
+}));
+
+// ROTA DE BOAS-VINDAS COM STATUS DO BANCO NEON
+app.get('/', async (req, res) => {
+  let dbStatus = 'offline';
+  let dbVersion = 'N/A';
+
+  try {
+    // Verifica a conexão e pega a versão do PostgreSQL no Neon
+    const result = await prisma.$queryRaw<any[]>`SELECT version()`;
+    if (result) {
+      dbStatus = 'online';
+      dbVersion = result[0].version;
+    }
+  } catch (error) {
+    dbStatus = 'error';
+    console.error('❌ [DATABASE] Health check failed:', error);
+  }
+
   res.json({
     status: 'online',
-    message: 'Welcome to the Blog API!',
-    documentation: '/api-docs'
+    message: 'Welcome to the A Grande Família Blog API!',
+    environment: process.env.NODE_ENV || 'development',
+    documentation: '/api-docs',
+    database: {
+      provider: 'PostgreSQL (Neon.tech)',
+      status: dbStatus,
+      version: dbVersion,
+      note: 'Métricas de cluster (requests/CPU) estão disponíveis no painel do Neon.tech'
+    },
+    owner: 'Lucas Avelino Fraga'
   });
 });
 
+// Rotas da API
 app.use('/api/v1', routes);
 
+// Inicialização (Apenas Local)
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
   prisma.$connect()
