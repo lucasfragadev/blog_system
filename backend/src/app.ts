@@ -5,12 +5,13 @@ import swaggerUi from 'swagger-ui-express';
 import cookieParser from 'cookie-parser';
 import routes from './routes/index';
 import { prisma } from './config/prisma';
-import { swaggerDocument } from './config/swagger';
+import { swaggerDocument } from './config/swagger'; // Importação direta do objeto TS
 
 dotenv.config();
 
 const app = express(); 
 
+// Configuração do Swagger - Agora 100% garantida na Vercel e Local
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 app.use(express.json()); 
@@ -44,7 +45,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/v1', routes);
 
-// Inicialização para ambiente local
+// Inicialização apenas para ambiente de desenvolvimento
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
   prisma.$connect()
