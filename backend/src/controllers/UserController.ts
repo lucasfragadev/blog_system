@@ -71,10 +71,10 @@ export const userController = {
 
     } catch (error: any) {
       const authErrors = [
+        "E-mail ou senha incorretos.",
         "E-mail ou senha inválidos.",
         "Invalid credentials",
-        "User not found",
-        "Incorrect password"
+        "User already exists"
       ];
 
       if (authErrors.includes(error.message)) {
