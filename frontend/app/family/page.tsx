@@ -16,7 +16,7 @@ const FamilyNode = ({ data }: NodeProps) => {
           {data.gender === 'MASCULINO' ? '👨' : '👩'}
         </div>
         {data.label && (
-          <span className={`absolute -top-2 -right-2 ${data.labelColor} text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase shadow-sm whitespace-nowrap`}>
+          <span className={`absolute -top-2 -right-2 ${data.labelColor} text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase shadow-sm whitespace-nowrap z-10`}>
             {data.label}
           </span>
         )}
@@ -30,7 +30,6 @@ export default function FamilyTreePage() {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
-  const [treeData, setTreeData] = useState<any[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const nodeTypes = useMemo(() => ({ familyNode: FamilyNode }), []);
@@ -45,52 +44,6 @@ export default function FamilyTreePage() {
 
   useEffect(() => { fetchTree(); }, [isDarkMode]);
 
-  const getPOVLabel = (member: any, me: any, allMembers: any[]) => {
-    if (!me || !member) return "";
-    if (member.user?.id === me.user?.id) return "Você";
-
-    const isMale = member.gender === 'MASCULINO';
-
-    // 1. Relações Diretas
-    if (member.id === me.spouseId) return isMale ? "Marido" : "Esposa";
-    if (member.id === me.fatherId) return "Pai";
-    if (member.id === me.motherId) return "Mãe";
-    if (member.fatherId === me.id || member.motherId === me.id) return isMale ? "Filho" : "Filha";
-    
-    // 2. Irmãos (Mesmo pai ou mesma mãe)
-    const isSibling = (member.fatherId && member.fatherId === me.fatherId) || (member.motherId && member.motherId === me.motherId);
-    if (isSibling) return isMale ? "Irmão" : "Irmã";
-
-    // 3. Relações do Cônjuge (Sogros e Cunhados)
-    if (me.spouseId) {
-      const mySpouse = allMembers.find(m => m.id === me.spouseId);
-      if (mySpouse) {
-        if (member.id === mySpouse.fatherId) return "Sogro";
-        if (member.id === mySpouse.motherId) return "Sogra";
-        const isSpouseSibling = (member.fatherId && member.fatherId === mySpouse.fatherId) || (member.motherId && member.motherId === mySpouse.motherId);
-        if (isSpouseSibling) return isMale ? "Cunhado" : "Cunhada";
-      }
-    }
-
-    // 4. Nora e Genro (Para os pais)
-    if (member.spouseId) {
-      const spouseOfMember = allMembers.find(m => m.id === member.spouseId);
-      if (spouseOfMember && (spouseOfMember.fatherId === me.id || spouseOfMember.motherId === me.id)) {
-        return isMale ? "Genro" : "Nora";
-      }
-    }
-
-    // 5. Avós (Pais dos meus pais)
-    const myFather = allMembers.find(m => m.id === me.fatherId);
-    const myMother = allMembers.find(m => m.id === me.motherId);
-    if ((myFather && (member.id === myFather.fatherId || member.id === myFather.motherId)) ||
-        (myMother && (member.id === myMother.fatherId || member.id === myMother.motherId))) {
-      return isMale ? "Avô" : "Avó";
-    }
-
-    return "";
-  };
-
   const fetchTree = async () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     try {
@@ -98,23 +51,78 @@ export default function FamilyTreePage() {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       const data = await res.json();
-      setTreeData(data);
       const me = data.find((m: any) => m.user?.id === user.id);
 
-      const newNodes = data.map((member: any, index: number) => {
-        const label = getPOVLabel(member, me, data);
-        let labelColor = "bg-gray-500";
-        if (label === "Você") labelColor = "bg-blue-500";
-        else if (["Pai", "Mãe", "Sogro", "Sogra", "Avô", "Avó"].includes(label)) labelColor = "bg-green-600";
-        else if (["Esposa", "Marido", "Nora", "Genro"].includes(label)) labelColor = "bg-pink-500";
-        else if (["Irmão", "Irmã", "Cunhado", "Cunhada"].includes(label)) labelColor = "bg-purple-600";
-        else if (["Filho", "Filha", "Neto", "Neta"].includes(label)) labelColor = "bg-teal-500";
+      // --- LÓGICA DE GERAÇÕES E PARENTESCO ---
+      const getPOVInfo = (member: any) => {
+        if (!me) return { label: "", color: "bg-gray-500", level: 2 };
+        if (member.id === me.id) return { label: "Você", color: "bg-blue-500", level: 2 };
 
+        const isMale = member.gender === 'MASCULINO';
+        
+        // IDs Auxiliares para cálculo
+        const myChildrenIds = data.filter((m: any) => m.fatherId === me.id || m.motherId === me.id).map((m: any) => m.id);
+        const mySiblings = data.filter((m: any) => m.id !== me.id && ((m.fatherId && m.fatherId === me.fatherId) || (m.motherId && m.motherId === me.motherId)));
+        const siblingIds = mySiblings.map((s: any) => s.id);
+
+        // 1. ANCESTRAIS
+        if (member.id === me.fatherId) return { label: "Pai", color: "bg-green-600", level: 1 };
+        if (member.id === me.motherId) return { label: "Mãe", color: "bg-green-600", level: 1 };
+
+        // 2. MESMA GERAÇÃO
+        if (member.id === me.spouseId) return { label: isMale ? "Marido" : "Esposa", color: "bg-pink-500", level: 2 };
+        if (siblingIds.includes(member.id)) return { label: isMale ? "Irmão" : "Irmã", color: "bg-purple-600", level: 2 };
+
+        // 3. DESCENDENTES DIRETOS
+        if (myChildrenIds.includes(member.id)) return { label: isMale ? "Filho" : "Filha", color: "bg-teal-500", level: 3 };
+
+        // 4. SOBRINHOS
+        if (siblingIds.includes(member.fatherId) || siblingIds.includes(member.motherId)) {
+          return { label: isMale ? "Sobrinho" : "Sobrinha", color: "bg-indigo-500", level: 3 };
+        }
+
+        // 5. NETOS
+        const isGrandchild = (member.fatherId && myChildrenIds.includes(member.fatherId)) || (member.motherId && myChildrenIds.includes(member.motherId));
+        if (isGrandchild) return { label: isMale ? "Neto" : "Neta", color: "bg-orange-500", level: 4 };
+
+        // 6. AFINIDADE
+        if (me.spouseId) {
+          const spouse = data.find((m: any) => m.id === me.spouseId);
+          if (spouse) {
+            if (member.id === spouse.fatherId) return { label: "Sogro", color: "bg-green-700", level: 1 };
+            if (member.id === spouse.motherId) return { label: "Sogra", color: "bg-green-700", level: 1 };
+            const isSpouseSibling = (member.fatherId && member.fatherId === spouse.fatherId) || (member.motherId && member.motherId === spouse.motherId);
+            if (isSpouseSibling) return { label: isMale ? "Cunhado" : "Cunhada", color: "bg-purple-400", level: 2 };
+          }
+        }
+
+        // 7. NORA/GENRO
+        if (member.spouseId) {
+          const partnerOfMember = data.find((m: any) => m.id === member.spouseId);
+          if (partnerOfMember && myChildrenIds.includes(partnerOfMember.id)) {
+            return { label: isMale ? "Genro" : "Nora", color: "bg-pink-400", level: 3 };
+          }
+        }
+
+        return { label: "", color: "bg-gray-500", level: 2 };
+      };
+
+      const newNodes = data.map((member: any, index: number) => {
+        const info = getPOVInfo(member);
         return {
           id: member.id,
           type: 'familyNode',
-          position: { x: index * 250, y: ["Pai", "Mãe", "Sogro", "Sogra", "Avô", "Avó"].includes(label) ? 0 : 250 },
-          data: { name: member.name, gender: member.gender, label, labelColor, isMe: member.user?.id === user.id },
+          position: { 
+            x: index * 250, 
+            y: info.level * 250
+          },
+          data: { 
+            name: member.name, 
+            gender: member.gender, 
+            label: info.label, 
+            labelColor: info.color, 
+            isMe: member.user?.id === user.id 
+          },
         };
       });
 
@@ -131,11 +139,13 @@ export default function FamilyTreePage() {
   };
 
   return (
-    <main className="h-screen w-full flex flex-col p-6 bg-white dark:bg-black">
+    <main className="h-screen w-full flex flex-col p-6 overflow-hidden bg-white dark:bg-black">
       <Header />
-      <div className="flex-1 bg-gray-50 dark:bg-gray-950 rounded-3xl border border-gray-200 dark:border-gray-800 overflow-hidden relative">
+      <div className="flex-1 bg-gray-50 dark:bg-gray-950 rounded-3xl border border-gray-200 dark:border-gray-800 overflow-hidden relative shadow-inner">
         {loading ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div></div>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md z-50">
+             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+          </div>
         ) : (
           <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView>
             <Background color={isDarkMode ? '#333' : '#ccc'} gap={20} />
