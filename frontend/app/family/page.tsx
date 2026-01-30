@@ -73,7 +73,7 @@ export default function FamilyTreePage() {
         return;
       }
 
-      // --- LÓGICA DE GERAÇÕES E RÓTULOS ---
+      // --- LÓGICA DE GERAÇÕES E RÓTULOS MELHORADA ---
       const getPOVInfo = (member: any) => {
         if (member.id === me.id) return { label: "Você", color: "bg-blue-500", level: 4 };
 
@@ -106,22 +106,41 @@ export default function FamilyTreePage() {
         if (grandchildren.includes(member.id)) return { label: isM ? "Neto" : "Neta", color: "bg-orange-500", level: 6 };
         if (greatGrandchildren.includes(member.id)) return { label: isM ? "Bisneto" : "Bisneta", color: "bg-red-500", level: 7 };
 
-        // Afinidade (Sogros e Cunhados)
+        // Afinidade (Sogros, Noras, Genros)
         if (me.spouseId) {
           const spouse = data.find((m: any) => m.id === me.spouseId);
           if (spouse && member.id === spouse.fatherId) return { label: "Sogro", color: "bg-green-700", level: 3 };
           if (spouse && member.id === spouse.motherId) return { label: "Sogra", color: "bg-green-700", level: 3 };
         }
 
+        // Verificar se é nora ou genro (cônjuge dos filhos)
+        const myChildren = data.filter((m: any) => m.fatherId === me.id || m.motherId === me.id);
+        for (const child of myChildren) {
+          if (member.id === child.spouseId) {
+            return { label: isM ? "Genro" : "Nora", color: "bg-cyan-600", level: 5 };
+          }
+        }
+
+        // Verificar se é cunhado/cunhada (cônjuge dos irmãos)
+        for (const siblingId of siblings) {
+          const sibling = data.find((m: any) => m.id === siblingId);
+          if (sibling && member.id === sibling.spouseId) {
+            return { label: isM ? "Cunhado" : "Cunhada", color: "bg-violet-600", level: 4 };
+          }
+        }
+
         return { label: "", color: "bg-gray-500", level: 4 };
       };
 
-      // --- ALGORITMO DE POSICIONAMENTO MELHORADO ---
+      // --- ALGORITMO DE POSICIONAMENTO INTELIGENTE ---
       const calculatePositions = () => {
         const membersByLevel: Record<number, any[]> = {};
-        const familyGroups: Record<string, any[]> = {};
-        
-        // Agrupar membros por nível e por família
+        const positions = new Map();
+        const NODE_WIDTH = 200; // Largura entre nós
+        const LEVEL_HEIGHT = 250; // Altura entre níveis
+        const COUPLE_SPACING = 120; // Espaçamento entre cônjuges
+
+        // Agrupar membros por nível
         data.forEach((member: any) => {
           const info = getPOVInfo(member);
           member.info = info;
@@ -130,98 +149,156 @@ export default function FamilyTreePage() {
             membersByLevel[info.level] = [];
           }
           membersByLevel[info.level].push(member);
-
-          // Agrupar por família (mesmo pai e mãe)
-          const familyKey = `${member.fatherId || 'none'}-${member.motherId || 'none'}`;
-          if (!familyGroups[familyKey]) {
-            familyGroups[familyKey] = [];
-          }
-          familyGroups[familyKey].push(member);
         });
 
-        const positions = new Map();
-        const NODE_WIDTH = 250; // Largura necessária para cada nó
-        const LEVEL_HEIGHT = 220; // Altura entre níveis
+        // Função para encontrar casais
+        const findCouples = (levelMembers: any[]) => {
+          const couples: any[][] = [];
+          const singles: any[] = [];
+          const processed = new Set();
+
+          levelMembers.forEach(member => {
+            if (processed.has(member.id)) return;
+
+            if (member.spouseId) {
+              const spouse = levelMembers.find(m => m.id === member.spouseId);
+              if (spouse && !processed.has(spouse.id)) {
+                // Esposa sempre à esquerda, marido à direita
+                if (member.gender === 'FEMININO') {
+                  couples.push([member, spouse]);
+                } else {
+                  couples.push([spouse, member]);
+                }
+                processed.add(member.id);
+                processed.add(spouse.id);
+              } else {
+                singles.push(member);
+                processed.add(member.id);
+              }
+            } else {
+              singles.push(member);
+              processed.add(member.id);
+            }
+          });
+
+          return { couples, singles };
+        };
+
+        // Função para calcular centro dos pais
+        const getParentsCenter = (member: any) => {
+          if (!member.fatherId && !member.motherId) return null;
+
+          const father = member.fatherId ? positions.get(member.fatherId) : null;
+          const mother = member.motherId ? positions.get(member.motherId) : null;
+
+          if (father && mother) {
+            return (father.x + mother.x) / 2;
+          } else if (father) {
+            return father.x;
+          } else if (mother) {
+            return mother.x;
+          }
+          return null;
+        };
 
         // Processar cada nível
         for (let level = 0; level <= 7; level++) {
           const levelMembers = membersByLevel[level] || [];
           if (levelMembers.length === 0) continue;
 
-          // Agrupar membros do mesmo nível por família
-          const levelFamilies: Record<string, any[]> = {};
-          levelMembers.forEach(member => {
+          const { couples, singles } = findCouples(levelMembers);
+          
+          // Agrupar por família (mesmos pais)
+          const familyGroups: Record<string, any[]> = {};
+          
+          [...couples.flat(), ...singles].forEach(member => {
             const familyKey = `${member.fatherId || 'none'}-${member.motherId || 'none'}`;
-            if (!levelFamilies[familyKey]) {
-              levelFamilies[familyKey] = [];
+            if (!familyGroups[familyKey]) {
+              familyGroups[familyKey] = [];
             }
-            levelFamilies[familyKey].push(member);
+            familyGroups[familyKey].push(member);
           });
 
-          // Ordenar famílias e membros dentro de cada família
-          const sortedFamilies = Object.values(levelFamilies).map(family => {
-            // Ordenar dentro da família: cônjuges juntos, depois filhos por idade/nome
-            return family.sort((a, b) => {
-              // Priorizar o usuário principal
-              if (a.id === me.id) return -1;
-              if (b.id === me.id) return 1;
-              
-              // Agrupar cônjuges
-              if (a.spouseId === b.id) return a.gender === 'MASCULINO' ? -1 : 1;
-              if (b.spouseId === a.id) return b.gender === 'MASCULINO' ? -1 : 1;
-              
-              // Ordenar por nome
-              return a.name.localeCompare(b.name);
-            });
+          // Ordenar grupos de família
+          const sortedFamilyGroups = Object.values(familyGroups).sort((a, b) => {
+            // Priorizar grupo que contém o usuário principal
+            const aHasMe = a.some(m => m.id === me.id);
+            const bHasMe = b.some(m => m.id === me.id);
+            if (aHasMe && !bHasMe) return -1;
+            if (!aHasMe && bHasMe) return 1;
+
+            // Ordenar por centro dos pais se disponível
+            const aParentsCenter = getParentsCenter(a[0]);
+            const bParentsCenter = getParentsCenter(b[0]);
+            if (aParentsCenter !== null && bParentsCenter !== null) {
+              return aParentsCenter - bParentsCenter;
+            }
+
+            return a[0].name.localeCompare(b[0].name);
           });
 
-          // Calcular posições horizontais
+          // Calcular posições
           let currentX = 0;
-          const totalFamilies = sortedFamilies.length;
-          const startX = -(totalFamilies * NODE_WIDTH * 1.5) / 2; // Centralizar
+          const totalWidth = sortedFamilyGroups.reduce((sum, group) => {
+            const groupCouples = couples.filter(couple => 
+              group.includes(couple[0]) || group.includes(couple[1])
+            );
+            const groupSingles = singles.filter(single => group.includes(single));
+            return sum + (groupCouples.length * (NODE_WIDTH + COUPLE_SPACING)) + (groupSingles.length * NODE_WIDTH);
+          }, 0);
 
-          sortedFamilies.forEach((family, familyIndex) => {
-            const familyWidth = family.length * NODE_WIDTH;
-            const familyStartX = startX + (familyIndex * NODE_WIDTH * 2);
+          currentX = -totalWidth / 2;
 
-            family.forEach((member, memberIndex) => {
-              const x = familyStartX + (memberIndex * NODE_WIDTH) - (familyWidth / 2);
-              const y = level * LEVEL_HEIGHT;
+          sortedFamilyGroups.forEach(familyGroup => {
+            // Processar casais da família
+            const familyCouples = couples.filter(couple => 
+              familyGroup.includes(couple[0]) || familyGroup.includes(couple[1])
+            );
+            
+            // Processar solteiros da família
+            const familySingles = singles.filter(single => familyGroup.includes(single));
+
+            // Posicionar casais
+            familyCouples.forEach(couple => {
+              const [wife, husband] = couple;
               
-              positions.set(member.id, { x, y });
+              // Esposa à esquerda
+              positions.set(wife.id, {
+                x: currentX,
+                y: level * LEVEL_HEIGHT
+              });
+
+              // Marido à direita
+              positions.set(husband.id, {
+                x: currentX + COUPLE_SPACING,
+                y: level * LEVEL_HEIGHT
+              });
+
+              currentX += NODE_WIDTH + COUPLE_SPACING;
             });
+
+            // Posicionar solteiros
+            familySingles.forEach(single => {
+              // Tentar centralizar com base nos pais
+              const parentsCenter = getParentsCenter(single);
+              let x = currentX;
+
+              if (parentsCenter !== null && familySingles.length === 1) {
+                x = parentsCenter;
+              }
+
+              positions.set(single.id, {
+                x,
+                y: level * LEVEL_HEIGHT
+              });
+
+              currentX += NODE_WIDTH;
+            });
+
+            currentX += NODE_WIDTH * 0.5; // Espaço entre famílias
           });
         }
 
-        // Ajustar posições para evitar sobreposições
-        const adjustOverlaps = () => {
-          for (let level = 0; level <= 7; level++) {
-            const levelMembers = membersByLevel[level] || [];
-            if (levelMembers.length <= 1) continue;
-
-            // Ordenar por posição X atual
-            const sortedMembers = levelMembers
-              .map(member => ({ member, pos: positions.get(member.id) }))
-              .sort((a, b) => a.pos.x - b.pos.x);
-
-            // Ajustar sobreposições
-            for (let i = 1; i < sortedMembers.length; i++) {
-              const current = sortedMembers[i];
-              const previous = sortedMembers[i - 1];
-              
-              const minDistance = NODE_WIDTH * 0.8; // Distância mínima entre nós
-              const currentDistance = current.pos.x - previous.pos.x;
-              
-              if (currentDistance < minDistance) {
-                const adjustment = minDistance - currentDistance;
-                current.pos.x += adjustment;
-                positions.set(current.member.id, current.pos);
-              }
-            }
-          }
-        };
-
-        adjustOverlaps();
         return positions;
       };
 
@@ -230,7 +307,7 @@ export default function FamilyTreePage() {
       // Criar nós com posições calculadas
       const newNodes = data.map((member: any) => {
         const info = getPOVInfo(member);
-        const position = positions.get(member.id) || { x: 0, y: info.level * 220 };
+        const position = positions.get(member.id) || { x: 0, y: info.level * 250 };
 
         return {
           id: member.id,
@@ -246,7 +323,7 @@ export default function FamilyTreePage() {
         };
       });
 
-      // --- LINHAS DE CONEXÃO (EDGES) MELHORADAS ---
+      // --- LINHAS DE CONEXÃO MELHORADAS ---
       const newEdges: Edge[] = [];
       
       data.forEach((member: any) => {
@@ -286,26 +363,19 @@ export default function FamilyTreePage() {
           });
         }
         
-        // Linha de Cônjuge (melhorada)
-        if (member.spouseId) {
-          // Evitar duplicar a linha (só criar uma vez por casal)
-          const spouseExists = newEdges.some(edge => 
-            (edge.source === member.spouseId && edge.target === member.id) ||
-            (edge.source === member.id && edge.target === member.spouseId)
-          );
-          
-          if (!spouseExists) {
-            newEdges.push({ 
-              id: `e-s-${member.id}`, 
-              source: member.id, 
-              target: member.spouseId, 
-              style: spouseLineStyle,
-              type: 'straight',
-              label: '💕',
-              labelStyle: { fontSize: '16px' },
-              labelBgStyle: { fill: 'transparent' }
-            });
-          }
+        // Linha de Cônjuge
+        if (member.spouseId && member.gender === 'MASCULINO') {
+          // Só criar uma linha por casal (do marido para esposa)
+          newEdges.push({ 
+            id: `e-s-${member.id}`, 
+            source: member.spouseId, // Da esposa (esquerda)
+            target: member.id,       // Para o marido (direita)
+            style: spouseLineStyle,
+            type: 'straight',
+            label: '💕',
+            labelStyle: { fontSize: '14px' },
+            labelBgStyle: { fill: 'transparent' }
+          });
         }
       });
 
@@ -353,9 +423,9 @@ export default function FamilyTreePage() {
             fitView 
             minZoom={0.1}
             maxZoom={1.2}
-            defaultViewport={{ x: 0, y: 0, zoom: 0.6 }}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.7 }}
             fitViewOptions={{
-              padding: 0.2,
+              padding: 0.3,
               includeHiddenNodes: false,
               minZoom: 0.1,
               maxZoom: 1.2
