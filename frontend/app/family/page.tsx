@@ -18,9 +18,9 @@ const FamilyNode = ({ data }: NodeProps) => {
   return (
     <div className="flex flex-col items-center">
       <div className="relative group">
-        <div className={`w-20 h-20 rounded-full border-4 transition-all duration-500
+        <div className={`w-24 h-24 rounded-full border-4 transition-all duration-500
           ${data.isMe ? 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.6)]' : 'border-green-600 dark:border-green-400 dark:shadow-[0_0_15px_rgba(74,222,128,0.4)]'} 
-          bg-white dark:bg-gray-900 flex items-center justify-center text-3xl shadow-xl group-hover:scale-110`}>
+          bg-white dark:bg-gray-900 flex items-center justify-center text-4xl shadow-xl group-hover:scale-110`}>
           {data.gender === 'MASCULINO' ? '👨' : '👩'}
         </div>
         
@@ -30,7 +30,7 @@ const FamilyNode = ({ data }: NodeProps) => {
           </span>
         )}
       </div>
-      <p className="mt-2 font-bold text-xs text-gray-800 dark:text-gray-200 text-center w-40 leading-tight">
+      <p className="mt-3 font-bold text-sm text-gray-800 dark:text-gray-200 text-center w-48 leading-tight break-words">
         {data.name}
       </p>
     </div>
@@ -73,7 +73,7 @@ export default function FamilyTreePage() {
         return;
       }
 
-      // --- LÓGICA DE GERAÇÕES E RÓTULOS CORRIGIDA ---
+      // --- LÓGICA DE GERAÇÕES E RÓTULOS ---
       const getPOVInfo = (member: any) => {
         if (member.id === me.id) return { label: "Você", color: "bg-blue-500", level: 4 };
 
@@ -105,7 +105,7 @@ export default function FamilyTreePage() {
         if (grandchildren.includes(member.id)) return { label: isM ? "Neto" : "Neta", color: "bg-orange-500", level: 6 };
         if (greatGrandchildren.includes(member.id)) return { label: isM ? "Bisneto" : "Bisneta", color: "bg-red-500", level: 7 };
 
-        // --- AFINIDADE CORRIGIDA ---
+        // --- AFINIDADE ---
         
         // Sogros (pais do cônjuge)
         if (me.spouseId) {
@@ -193,13 +193,14 @@ export default function FamilyTreePage() {
         return { label: "", color: "bg-gray-500", level: 4 };
       };
 
-      // --- ALGORITMO DE POSICIONAMENTO INTELIGENTE ---
+      // --- ALGORITMO DE POSICIONAMENTO MELHORADO ---
       const calculatePositions = () => {
         const membersByLevel: Record<number, any[]> = {};
         const positions = new Map();
-        const NODE_WIDTH = 200; // Largura entre nós
-        const LEVEL_HEIGHT = 250; // Altura entre níveis
-        const COUPLE_SPACING = 120; // Espaçamento entre cônjuges
+        const NODE_WIDTH = 280; // Aumentado para evitar truncamento
+        const LEVEL_HEIGHT = 300; // Aumentado para melhor espaçamento vertical
+        const COUPLE_SPACING = 160; // Aumentado espaçamento entre cônjuges
+        const FAMILY_SPACING = 100; // Espaço entre famílias diferentes
 
         // Agrupar membros por nível
         data.forEach((member: any) => {
@@ -212,8 +213,13 @@ export default function FamilyTreePage() {
           membersByLevel[info.level].push(member);
         });
 
-        // Função para encontrar casais
-        const findCouples = (levelMembers: any[]) => {
+        // Função para verificar se um membro tem filhos
+        const hasChildren = (memberId: string) => {
+          return data.some((m: any) => m.fatherId === memberId || m.motherId === memberId);
+        };
+
+        // Função para encontrar casais e organizá-los
+        const findAndOrganizeCouples = (levelMembers: any[]) => {
           const couples: any[][] = [];
           const singles: any[] = [];
           const processed = new Set();
@@ -224,7 +230,7 @@ export default function FamilyTreePage() {
             if (member.spouseId) {
               const spouse = levelMembers.find(m => m.id === member.spouseId);
               if (spouse && !processed.has(spouse.id)) {
-                // Esposa sempre à esquerda, marido à direita
+                // Sempre mulher à esquerda, homem à direita
                 if (member.gender === 'FEMININO') {
                   couples.push([member, spouse]);
                 } else {
@@ -267,9 +273,9 @@ export default function FamilyTreePage() {
           const levelMembers = membersByLevel[level] || [];
           if (levelMembers.length === 0) continue;
 
-          const { couples, singles } = findCouples(levelMembers);
+          const { couples, singles } = findAndOrganizeCouples(levelMembers);
           
-          // Agrupar por família (mesmos pais)
+          // Agrupar por família (mesmos pais) e ordenar por prioridade
           const familyGroups: Record<string, any[]> = {};
           
           [...couples.flat(), ...singles].forEach(member => {
@@ -280,70 +286,115 @@ export default function FamilyTreePage() {
             familyGroups[familyKey].push(member);
           });
 
-          // Ordenar grupos de família
+          // Ordenar grupos de família com lógica melhorada
           const sortedFamilyGroups = Object.values(familyGroups).sort((a, b) => {
-            // Priorizar grupo que contém o usuário principal
+            // 1. Priorizar grupo que contém o usuário principal
             const aHasMe = a.some(m => m.id === me.id);
             const bHasMe = b.some(m => m.id === me.id);
             if (aHasMe && !bHasMe) return -1;
             if (!aHasMe && bHasMe) return 1;
 
-            // Ordenar por centro dos pais se disponível
+            // 2. Casais com filhos ficam nas extremidades para melhor alinhamento
+            const aHasChildrenCouple = a.some(m => m.spouseId && hasChildren(m.id));
+            const bHasChildrenCouple = b.some(m => m.spouseId && hasChildren(m.id));
+            
+            // 3. Ordenar por centro dos pais se disponível
             const aParentsCenter = getParentsCenter(a[0]);
             const bParentsCenter = getParentsCenter(b[0]);
             if (aParentsCenter !== null && bParentsCenter !== null) {
               return aParentsCenter - bParentsCenter;
             }
 
+            // 4. Ordenar por gênero (mulheres primeiro) e depois por nome
+            const aFirstFemale = a.find(m => m.gender === 'FEMININO');
+            const bFirstFemale = b.find(m => m.gender === 'FEMININO');
+            
+            if (aFirstFemale && bFirstFemale) {
+              return aFirstFemale.name.localeCompare(bFirstFemale.name);
+            }
+            
             return a[0].name.localeCompare(b[0].name);
           });
 
-          // Calcular posições
-          let currentX = 0;
-          const totalWidth = sortedFamilyGroups.reduce((sum, group) => {
+          // Calcular largura total necessária
+          let totalWidth = 0;
+          sortedFamilyGroups.forEach(group => {
             const groupCouples = couples.filter(couple => 
               group.includes(couple[0]) || group.includes(couple[1])
             );
             const groupSingles = singles.filter(single => group.includes(single));
-            return sum + (groupCouples.length * (NODE_WIDTH + COUPLE_SPACING)) + (groupSingles.length * NODE_WIDTH);
-          }, 0);
+            totalWidth += (groupCouples.length * (NODE_WIDTH + COUPLE_SPACING)) + 
+                         (groupSingles.length * NODE_WIDTH) + 
+                         FAMILY_SPACING;
+          });
 
-          currentX = -totalWidth / 2;
+          let currentX = -totalWidth / 2;
 
-          sortedFamilyGroups.forEach(familyGroup => {
-            // Processar casais da família
+          // Posicionar cada grupo de família
+          sortedFamilyGroups.forEach((familyGroup, groupIndex) => {
             const familyCouples = couples.filter(couple => 
               familyGroup.includes(couple[0]) || familyGroup.includes(couple[1])
             );
-            
-            // Processar solteiros da família
             const familySingles = singles.filter(single => familyGroup.includes(single));
+
+            // Ordenar casais dentro da família (mulheres à esquerda)
+            familyCouples.sort((a, b) => {
+              // Priorizar casal que contém o usuário principal
+              const aHasMe = a.some(m => m.id === me.id);
+              const bHasMe = b.some(m => m.id === me.id);
+              if (aHasMe && !bHasMe) return -1;
+              if (!aHasMe && bHasMe) return 1;
+
+              // Ordenar por nome da mulher
+              return a[0].name.localeCompare(b[0].name);
+            });
+
+            // Ordenar solteiros (mulheres primeiro)
+            familySingles.sort((a, b) => {
+              // Priorizar usuário principal
+              if (a.id === me.id) return -1;
+              if (b.id === me.id) return 1;
+
+              // Mulheres primeiro
+              if (a.gender === 'FEMININO' && b.gender === 'MASCULINO') return -1;
+              if (a.gender === 'MASCULINO' && b.gender === 'FEMININO') return 1;
+
+              return a.name.localeCompare(b.name);
+            });
 
             // Posicionar casais
             familyCouples.forEach(couple => {
               const [wife, husband] = couple;
               
+              // Calcular posição baseada nos filhos se houver
+              const coupleCenter = getParentsCenter({ fatherId: husband.id, motherId: wife.id });
+              let baseX = currentX;
+              
+              if (coupleCenter !== null) {
+                baseX = coupleCenter - COUPLE_SPACING / 2;
+              }
+
               // Esposa à esquerda
               positions.set(wife.id, {
-                x: currentX,
+                x: baseX,
                 y: level * LEVEL_HEIGHT
               });
 
               // Marido à direita
               positions.set(husband.id, {
-                x: currentX + COUPLE_SPACING,
+                x: baseX + COUPLE_SPACING,
                 y: level * LEVEL_HEIGHT
               });
 
-              currentX += NODE_WIDTH + COUPLE_SPACING;
+              currentX = baseX + NODE_WIDTH + COUPLE_SPACING;
             });
 
             // Posicionar solteiros
             familySingles.forEach(single => {
-              // Tentar centralizar com base nos pais
               const parentsCenter = getParentsCenter(single);
               let x = currentX;
 
+              // Se é filho único, centralizar com os pais
               if (parentsCenter !== null && familySingles.length === 1) {
                 x = parentsCenter;
               }
@@ -356,7 +407,10 @@ export default function FamilyTreePage() {
               currentX += NODE_WIDTH;
             });
 
-            currentX += NODE_WIDTH * 0.5; // Espaço entre famílias
+            // Adicionar espaço entre famílias
+            if (groupIndex < sortedFamilyGroups.length - 1) {
+              currentX += FAMILY_SPACING;
+            }
           });
         }
 
@@ -368,7 +422,7 @@ export default function FamilyTreePage() {
       // Criar nós com posições calculadas
       const newNodes = data.map((member: any) => {
         const info = getPOVInfo(member);
-        const position = positions.get(member.id) || { x: 0, y: info.level * 250 };
+        const position = positions.get(member.id) || { x: 0, y: info.level * 300 };
 
         return {
           id: member.id,
@@ -384,7 +438,7 @@ export default function FamilyTreePage() {
         };
       });
 
-      // --- LINHAS DE CONEXÃO MELHORADAS ---
+      // --- LINHAS DE CONEXÃO ---
       const newEdges: Edge[] = [];
       
       data.forEach((member: any) => {
@@ -424,9 +478,8 @@ export default function FamilyTreePage() {
           });
         }
         
-        // Linha de Cônjuge
+        // Linha de Cônjuge (só criar uma por casal)
         if (member.spouseId && member.gender === 'MASCULINO') {
-          // Só criar uma linha por casal (do marido para esposa)
           newEdges.push({ 
             id: `e-s-${member.id}`, 
             source: member.spouseId, // Da esposa (esquerda)
@@ -434,7 +487,7 @@ export default function FamilyTreePage() {
             style: spouseLineStyle,
             type: 'straight',
             label: '💕',
-            labelStyle: { fontSize: '14px' },
+            labelStyle: { fontSize: '16px' },
             labelBgStyle: { fill: 'transparent' }
           });
         }
@@ -484,9 +537,9 @@ export default function FamilyTreePage() {
             fitView 
             minZoom={0.1}
             maxZoom={1.2}
-            defaultViewport={{ x: 0, y: 0, zoom: 0.7 }}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.6 }}
             fitViewOptions={{
-              padding: 0.3,
+              padding: 0.2,
               includeHiddenNodes: false,
               minZoom: 0.1,
               maxZoom: 1.2
