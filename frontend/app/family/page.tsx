@@ -53,7 +53,6 @@ export default function FamilyTreePage() {
     return () => observer.disconnect();
   }, []);
 
-  // Separar o useEffect para fetchTree - não depende de isDarkMode
   useEffect(() => { 
     fetchTree(); 
   }, []);
@@ -69,9 +68,13 @@ export default function FamilyTreePage() {
       const data = await res.json();
       const me = data.find((m: any) => m.user?.id === user.id);
 
-      // --- LÓGICA DE GERAÇÕES (0-7) E RÓTULOS ---
+      if (!me) {
+        setLoading(false);
+        return;
+      }
+
+      // --- LÓGICA DE GERAÇÕES E RÓTULOS ---
       const getPOVInfo = (member: any) => {
-        if (!me) return { label: "", color: "bg-gray-500", level: 4 };
         if (member.id === me.id) return { label: "Você", color: "bg-blue-500", level: 4 };
 
         const isM = member.gender === 'MASCULINO';
@@ -85,7 +88,6 @@ export default function FamilyTreePage() {
         const siblings = data.filter((m: any) => m.id !== me.id && ((m.fatherId && m.fatherId === me.fatherId) || (m.motherId && m.motherId === me.motherId))).map((s: any) => s.id);
         const children = data.filter((m: any) => m.fatherId === me.id || m.motherId === me.id).map((c: any) => c.id);
         const grandchildren = data.filter((m: any) => children.includes(m.fatherId) || children.includes(m.motherId)).map((g: any) => g.id);
-        // CORREÇÃO: Usar 'bg' em vez de 'g'
         const greatGrandchildren = data.filter((m: any) => grandchildren.includes(m.fatherId) || grandchildren.includes(m.motherId)).map((bg: any) => bg.id);
 
         // Níveis Superiores
@@ -104,7 +106,7 @@ export default function FamilyTreePage() {
         if (grandchildren.includes(member.id)) return { label: isM ? "Neto" : "Neta", color: "bg-orange-500", level: 6 };
         if (greatGrandchildren.includes(member.id)) return { label: isM ? "Bisneto" : "Bisneta", color: "bg-red-500", level: 7 };
 
-        // Afinidade (Sogros e Cunhados para Visão de Cônjuge)
+        // Afinidade (Sogros e Cunhados)
         if (me.spouseId) {
           const spouse = data.find((m: any) => m.id === me.spouseId);
           if (spouse && member.id === spouse.fatherId) return { label: "Sogro", color: "bg-green-700", level: 3 };
@@ -114,22 +116,105 @@ export default function FamilyTreePage() {
         return { label: "", color: "bg-gray-500", level: 4 };
       };
 
-      // Agrupamento por nível para calcular o X (ajuda a manter a esposa perto)
-      const levelCounts: Record<number, number> = {};
-      
+      // --- ALGORITMO DE POSICIONAMENTO MELHORADO ---
+      const calculatePositions = () => {
+        const membersByLevel: Record<number, any[]> = {};
+        const processedMembers = new Map();
+
+        // Agrupar membros por nível
+        data.forEach((member: any) => {
+          const info = getPOVInfo(member);
+          if (!membersByLevel[info.level]) {
+            membersByLevel[info.level] = [];
+          }
+          membersByLevel[info.level].push({ ...member, info });
+        });
+
+        // Função para calcular posição horizontal baseada em relacionamentos
+        const getHorizontalPosition = (member: any, level: number) => {
+          const levelMembers = membersByLevel[level] || [];
+          let baseX = 0;
+
+          // Se é cônjuge, posicionar próximo ao parceiro
+          if (member.spouseId) {
+            const spouse = data.find((m: any) => m.id === member.spouseId);
+            if (spouse && processedMembers.has(spouse.id)) {
+              const spousePos = processedMembers.get(spouse.id);
+              return member.gender === 'MASCULINO' ? spousePos.x - 150 : spousePos.x + 150;
+            }
+          }
+
+          // Se tem pais, posicionar entre eles ou próximo
+          if (member.fatherId || member.motherId) {
+            const father = data.find((m: any) => m.id === member.fatherId);
+            const mother = data.find((m: any) => m.id === member.motherId);
+            
+            if (father && processedMembers.has(father.id) && mother && processedMembers.has(mother.id)) {
+              const fatherPos = processedMembers.get(father.id);
+              const motherPos = processedMembers.get(mother.id);
+              return (fatherPos.x + motherPos.x) / 2;
+            } else if (father && processedMembers.has(father.id)) {
+              const fatherPos = processedMembers.get(father.id);
+              return fatherPos.x + (levelMembers.filter(m => m.fatherId === member.fatherId).indexOf(member) * 200);
+            } else if (mother && processedMembers.has(mother.id)) {
+              const motherPos = processedMembers.get(mother.id);
+              return motherPos.x + (levelMembers.filter(m => m.motherId === member.motherId).indexOf(member) * 200);
+            }
+          }
+
+          // Posicionamento padrão baseado na ordem no nível
+          const indexInLevel = levelMembers.indexOf(member);
+          return (indexInLevel - Math.floor(levelMembers.length / 2)) * 300;
+        };
+
+        const positions = new Map();
+
+        // Processar níveis de cima para baixo (ancestrais primeiro)
+        for (let level = 0; level <= 7; level++) {
+          const levelMembers = membersByLevel[level] || [];
+          
+          // Ordenar membros do nível para melhor organização
+          levelMembers.sort((a, b) => {
+            // Priorizar o usuário principal
+            if (a.id === me.id) return -1;
+            if (b.id === me.id) return 1;
+            
+            // Agrupar cônjuges
+            if (a.spouseId === b.id || b.spouseId === a.id) {
+              return a.gender === 'MASCULINO' ? -1 : 1;
+            }
+            
+            // Agrupar irmãos
+            if (a.fatherId === b.fatherId && a.motherId === b.motherId) {
+              return a.name.localeCompare(b.name);
+            }
+            
+            return a.name.localeCompare(b.name);
+          });
+
+          levelMembers.forEach((member, index) => {
+            const x = getHorizontalPosition(member, level);
+            const y = level * 200; // Espaçamento vertical entre gerações
+            
+            positions.set(member.id, { x, y });
+            processedMembers.set(member.id, { x, y });
+          });
+        }
+
+        return positions;
+      };
+
+      const positions = calculatePositions();
+
+      // Criar nós com posições calculadas
       const newNodes = data.map((member: any) => {
         const info = getPOVInfo(member);
-        const currentCount = levelCounts[info.level] || 0;
-        // CORREÇÃO: Incrementar ANTES de usar
-        levelCounts[info.level] = currentCount + 1;
+        const position = positions.get(member.id) || { x: 0, y: info.level * 200 };
 
         return {
           id: member.id,
           type: 'familyNode',
-          position: { 
-            x: (currentCount * 280) - 400, // Agora usa o valor correto
-            y: info.level * 350           // Espaçamento vertical entre gerações
-          },
+          position,
           data: { 
             name: member.name, 
             gender: member.gender, 
@@ -149,17 +234,40 @@ export default function FamilyTreePage() {
           filter: isDarkMode ? 'drop-shadow(0 0 8px rgba(74, 222, 128, 0.8))' : 'none' 
         };
 
+        // Conexões pai-filho
         if (member.fatherId) {
-          newEdges.push({ id: `e-f-${member.id}`, source: member.fatherId, target: member.id, animated: true, style: lineStyle });
+          newEdges.push({ 
+            id: `e-f-${member.id}`, 
+            source: member.fatherId, 
+            target: member.id, 
+            animated: true, 
+            style: lineStyle,
+            type: 'smoothstep'
+          });
         }
         if (member.motherId) {
-          newEdges.push({ id: `e-m-${member.id}`, source: member.motherId, target: member.id, animated: true, style: lineStyle });
+          newEdges.push({ 
+            id: `e-m-${member.id}`, 
+            source: member.motherId, 
+            target: member.id, 
+            animated: true, 
+            style: lineStyle,
+            type: 'smoothstep'
+          });
         }
-        // Linha de Cônjuge (opcional, tracejada)
+        
+        // Linha de Cônjuge (tracejada)
         if (member.spouseId && member.gender === 'MASCULINO') {
           newEdges.push({ 
-            id: `e-s-${member.id}`, source: member.id, target: member.spouseId, 
-            style: { stroke: '#ec4899', strokeWidth: 2, strokeDasharray: '5,5' } 
+            id: `e-s-${member.id}`, 
+            source: member.id, 
+            target: member.spouseId, 
+            style: { 
+              stroke: '#ec4899', 
+              strokeWidth: 2, 
+              strokeDasharray: '5,5' 
+            },
+            type: 'straight'
           });
         }
       });
@@ -205,6 +313,8 @@ export default function FamilyTreePage() {
             nodeTypes={nodeTypes} 
             fitView 
             minZoom={0.05}
+            maxZoom={1.5}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
           >
             <Background 
               color={isDarkMode ? '#333' : '#ccc'} 
