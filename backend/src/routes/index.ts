@@ -4,7 +4,7 @@ import postRoutes from './postRoutes';
 import userRoutes from './userRoutes';
 import commentRoutes from './commentRoutes';
 import likeRoutes from './likeRoutes';
-import familyRoutes from './familyRoutes';
+import familyRoutes from './familyRoutes'; // Importado
 
 const router = Router();
 

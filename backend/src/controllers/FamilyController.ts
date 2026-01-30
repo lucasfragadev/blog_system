@@ -14,7 +14,7 @@ export const familyController = {
     }
   },
 
-  // POST /family/manual (NOVO: Cria membro sem conta)
+  // POST /family/manual
   createManual: async (req: Request, res: Response) => {
     try {
       const member = await familyService.createVisualMember(req.body);

@@ -5,11 +5,12 @@ import { adminMiddleware } from '../middlewares/adminMiddleware';
 
 const familyRoutes = Router();
 
-// Rota pública para todos os logados verem a árvore
+// Rota para a Árvore Visual (Todos os logados)
 familyRoutes.get('/tree', authMiddleware, familyController.getTree);
 
-// Rotas restritas ao ADMIN para gestão
+// Rotas de Gestão (Apenas ADMIN)
 familyRoutes.get('/members', authMiddleware, adminMiddleware, familyController.index);
 familyRoutes.post('/link', authMiddleware, adminMiddleware, familyController.link);
+familyRoutes.post('/manual', authMiddleware, adminMiddleware, familyController.createManual);
 
 export default familyRoutes;
