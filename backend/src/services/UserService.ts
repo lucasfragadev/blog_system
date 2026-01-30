@@ -25,6 +25,8 @@ export class UserService {
       name: data.name,
       email: data.email,
       password: hashedPassword,
+      birthDate: data.birthDate ? new Date(data.birthDate) : null,
+      gender: data.gender || 'OUTRO',
     });
 
     // Remove a senha do objeto de retorno para não vazar dados sensíveis

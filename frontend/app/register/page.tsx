@@ -14,12 +14,14 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '', // Item 2: Campo de confirmação
+    birthDate: '',       // Novo campo
+    gender: 'OUTRO',     // Novo campo com valor padrão
   });
   
   const [showPassword, setShowPassword] = useState(false); // Item 1: Estado do "olhinho"
   const [error, setError] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -78,6 +80,35 @@ export default function RegisterPage() {
               dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-blue-400"
               onChange={handleChange}
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nascimento</label>
+              <input
+                name="birthDate"
+                type="date"
+                required
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 
+                dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-blue-400"
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gênero</label>
+              <select
+                name="gender"
+                required
+                className="w-full p-2.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 
+                dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-blue-400"
+                onChange={handleChange}
+                value={formData.gender}
+              >
+                <option value="MASCULINO">Masculino</option>
+                <option value="FEMININO">Feminino</option>
+                <option value="OUTRO">Outro</option>
+              </select>
+            </div>
           </div>
 
           <div>
