@@ -18,10 +18,14 @@ export function Header() {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
+      await fetch(`${API_URL}/auth/logout`, { 
+          method: 'POST',
+          credentials: 'include' 
+      });
     } catch (error) {
       console.error('Erro ao fazer logout', error);
     }
+    
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
@@ -31,10 +35,14 @@ export function Header() {
 
   return (
     <header className="mb-8 border-b border-gray-300 dark:border-gray-700 pb-4 flex flex-col md:flex-row justify-between items-center gap-4">
+      
       <div className="text-center md:text-left">
-        <Link href="/" className="text-3xl font-bold text-gray-800 dark:text-white hover:text-gray-600 transition">
+        <Link href="/" className="text-3xl font-bold text-gray-800 dark:text-white hover:text-gray-600 dark:hover:text-gray-300 transition">
           A Grande Família Blog
         </Link>
+        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+          Compartilhe seu dia a dia com o mundo e a família! 
+        </p>
       </div>
 
       <div className="flex gap-4 items-center w-full md:w-auto justify-center">
@@ -63,10 +71,20 @@ export function Header() {
               Novo Post
             </Link>
 
-            <button onClick={handleLogout} className="text-red-600 text-sm hover:underline">Sair</button>
+            <button 
+              onClick={handleLogout}
+              className="text-red-600 dark:text-red-400 text-sm hover:underline"
+            >
+              Sair
+            </button>
           </>
         ) : (
-          <Link href="/login" className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium">Login</Link>
+          <Link 
+            href="/login" 
+            className="w-full md:w-auto text-center bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 transition"
+          >
+            Login / Cadastro
+          </Link>
         )}
       </div>
     </header>
