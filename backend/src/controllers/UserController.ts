@@ -16,17 +16,14 @@ export const userController = {
   create: async (req: Request, res: Response) => {
     const { name, email, password, confirmPassword } = req.body;
 
-    // 1. Validações Iniciais
     if (!name || !email || !password || !confirmPassword) {
       return res.status(400).json({ message: "Nome, e-mail, senha e confirmação são obrigatórios." });
     }
 
-    // 2. Validação de Confirmação de Senha
     if (password !== confirmPassword) {
       return res.status(400).json({ message: "As senhas não coincidem." });
     }
 
-    // 3. Validação de Força da Senha
     if (!passwordRegex.test(password)) {
       return res.status(400).json({
         message: "A senha deve ter pelo menos 6 caracteres e um símbolo especial."
@@ -47,13 +44,8 @@ export const userController = {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         return res.status(409).json({ message: "Este e-mail já está cadastrado." });
       }
-
-      if (error.message === 'User already exists') {
-        return res.status(409).json({ message: "Este e-mail já está cadastrado." });
-      }
-
       console.error(error);
-      return res.status(500).json({ message: "An unexpected server error occurred." });
+      return res.status(500).json({ message: "Erro inesperado ao registrar usuário." });
     }
   },
 
@@ -78,11 +70,19 @@ export const userController = {
       return res.status(200).json({ user: result.user });
 
     } catch (error: any) {
-      if (error.message === "E-mail ou senha inválidos.") {
-        return res.status(401).json({ message: "Credenciais inválidas" });
+      const authErrors = [
+        "E-mail ou senha inválidos.",
+        "Invalid credentials",
+        "User not found",
+        "Incorrect password"
+      ];
+
+      if (authErrors.includes(error.message)) {
+        return res.status(401).json({ message: "E-mail ou senha incorretos." });
       }
-      console.error(error);
-      return res.status(500).json({ message: "An unexpected server error occurred." });
+
+      console.error("Erro interno no Login:", error);
+      return res.status(500).json({ message: "Ocorreu um erro interno no servidor." });
     }
   },
 
@@ -136,17 +136,14 @@ export const userController = {
     const { token, newPassword, confirmPassword } = req.body;
 
     try {
-      // 1. Validação de campos obrigatórios
       if (!newPassword || !confirmPassword) {
         return res.status(400).json({ message: "Senha e confirmação são obrigatórias." });
       }
 
-      // 2. Validação de Confirmação
       if (newPassword !== confirmPassword) {
         return res.status(400).json({ message: "As senhas não coincidem." });
       }
 
-      // 3. Validação de força da nova senha
       if (!passwordRegex.test(newPassword)) {
         return res.status(400).json({
           message: "A nova senha deve ter pelo menos 6 caracteres e um símbolo especial."

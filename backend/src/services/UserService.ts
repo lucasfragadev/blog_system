@@ -38,14 +38,14 @@ export class UserService {
     const user = await this.userRepository.findByEmail(data.email);
 
     if (!user) {
-      throw new Error('Invalid email or password');
+      throw new Error('E-mail ou senha incorretos.');
     }
 
     // Comparação segura do hash (não descriptografa, apenas verifica match)
     const passwordMatch = await bcrypt.compare(data.password, user.password);
 
     if (!passwordMatch) {
-      throw new Error('Invalid email or password');
+      throw new Error('E-mail ou senha incorretos.');
     }
 
     // Geração do Token JWT (Stateless)
