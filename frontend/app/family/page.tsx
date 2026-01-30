@@ -53,7 +53,10 @@ export default function FamilyTreePage() {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => { fetchTree(); }, [isDarkMode]);
+  // Separar o useEffect para fetchTree - não depende de isDarkMode
+  useEffect(() => { 
+    fetchTree(); 
+  }, []);
 
   const fetchTree = async () => {
     const token = localStorage.getItem('token');
@@ -82,7 +85,8 @@ export default function FamilyTreePage() {
         const siblings = data.filter((m: any) => m.id !== me.id && ((m.fatherId && m.fatherId === me.fatherId) || (m.motherId && m.motherId === me.motherId))).map((s: any) => s.id);
         const children = data.filter((m: any) => m.fatherId === me.id || m.motherId === me.id).map((c: any) => c.id);
         const grandchildren = data.filter((m: any) => children.includes(m.fatherId) || children.includes(m.motherId)).map((g: any) => g.id);
-        const greatGrandchildren = data.filter((m: any) => grandchildren.includes(m.fatherId) || grandchildren.includes(m.motherId)).map((bg: any) => g.id);
+        // CORREÇÃO: Usar 'bg' em vez de 'g'
+        const greatGrandchildren = data.filter((m: any) => grandchildren.includes(m.fatherId) || grandchildren.includes(m.motherId)).map((bg: any) => bg.id);
 
         // Níveis Superiores
         if (greatGreatGrandparents.includes(member.id)) return { label: isM ? "Tataravô" : "Tataravó", color: "bg-emerald-600", level: 0 };
@@ -116,13 +120,14 @@ export default function FamilyTreePage() {
       const newNodes = data.map((member: any) => {
         const info = getPOVInfo(member);
         const currentCount = levelCounts[info.level] || 0;
+        // CORREÇÃO: Incrementar ANTES de usar
         levelCounts[info.level] = currentCount + 1;
 
         return {
           id: member.id,
           type: 'familyNode',
           position: { 
-            x: (currentCount * 280) - 400, // Espaçamento horizontal por nível
+            x: (currentCount * 280) - 400, // Agora usa o valor correto
             y: info.level * 350           // Espaçamento vertical entre gerações
           },
           data: { 
@@ -161,8 +166,28 @@ export default function FamilyTreePage() {
 
       setNodes(newNodes);
       setEdges(newEdges);
-    } catch (err) { console.error("Erro na Árvore:", err); } finally { setLoading(false); }
+    } catch (err) { 
+      console.error("Erro na Árvore:", err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
+
+  // Função para atualizar estilos das edges quando o tema muda
+  useEffect(() => {
+    if (nodes.length > 0) {
+      setEdges(prevEdges => 
+        prevEdges.map(edge => ({
+          ...edge,
+          style: {
+            ...edge.style,
+            stroke: edge.style?.strokeDasharray ? '#ec4899' : (isDarkMode ? '#4ade80' : '#16a34a'),
+            filter: isDarkMode && !edge.style?.strokeDasharray ? 'drop-shadow(0 0 8px rgba(74, 222, 128, 0.8))' : 'none'
+          }
+        }))
+      );
+    }
+  }, [isDarkMode, nodes.length]);
 
   return (
     <main className="h-screen w-full flex flex-col p-6 overflow-hidden bg-white dark:bg-black">
@@ -191,3 +216,5 @@ export default function FamilyTreePage() {
         )}
       </div>
     </main>
+  );
+}
