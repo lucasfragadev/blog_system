@@ -1,68 +1,80 @@
 import { prisma } from '../config/prisma';
 
 export class FamilyService {
-  // Lista membros para o painel de ADMIN
+  /**
+   * 1. Lista TODOS os membros da árvore.
+   * Antes listava usuários, agora lista a tabela FamilyMember diretamente
+   * para que membros sem conta (visuais) também apareçam no seu painel.
+   */
   async listAllMembers() {
-    return await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        gender: true,
-        familyMember: {
-          include: {
-            father: true,
-            mother: true,
-            spouse: true
+    return await prisma.familyMember.findMany({
+      include: {
+        father: true,
+        mother: true,
+        spouse: true,
+        user: {
+          select: {
+            email: true,
+            id: true
           }
         }
+      },
+      orderBy: { name: 'asc' }
+    });
+  }
+
+  /**
+   * 2. Cria um membro "Visual" (Sem conta/user).
+   * Útil para antepassados ou crianças que ainda não acessam o sistema.
+   */
+  async createVisualMember(data: { name: string, gender: string, birthDate?: string }) {
+    return await prisma.familyMember.create({
+      data: {
+        name: data.name,
+        gender: data.gender,
+        birthDate: data.birthDate ? new Date(data.birthDate) : null,
       }
     });
   }
 
-  // Cria ou atualiza o vínculo de parentesco (Pai, Mãe ou Cônjuge)
+  /**
+   * 3. Realiza o vínculo usando IDs de Membros.
+   * Atualizado para usar IDs da tabela FamilyMember, permitindo
+   * conectar qualquer pessoa da lista, com ou sem conta.
+   */
   async linkMembers(memberId: string, relativeId: string, type: 'father' | 'mother' | 'spouse') {
-    // 1. Garante que o membro principal exista na tabela FamilyMember
-    let member = await prisma.familyMember.findFirst({ where: { user: { id: memberId } } });
-    if (!member) {
-      const user = await prisma.user.findUnique({ where: { id: memberId } });
-      member = await prisma.familyMember.create({
-        data: {
-          name: user!.name,
-          gender: user!.gender,
-          birthDate: user!.birthDate,
-          user: { connect: { id: memberId } }
-        }
-      });
-    }
-
-    // 2. Garante que o parente exista na tabela FamilyMember
-    let relative = await prisma.familyMember.findFirst({ where: { user: { id: relativeId } } });
-    if (!relative) {
-      const relUser = await prisma.user.findUnique({ where: { id: relativeId } });
-      relative = await prisma.familyMember.create({
-        data: {
-          name: relUser!.name,
-          gender: relUser!.gender,
-          birthDate: relUser!.birthDate,
-          user: { connect: { id: relativeId } }
-        }
-      });
-    }
-
-    // 3. Aplica o vínculo
     const updateData: any = {};
-    if (type === 'father') updateData.fatherId = relative.id;
-    if (type === 'mother') updateData.motherId = relative.id;
-    if (type === 'spouse') updateData.spouseId = relative.id;
+    if (type === 'father') updateData.fatherId = relativeId;
+    if (type === 'mother') updateData.motherId = relativeId;
+    if (type === 'spouse') {
+      updateData.spouseId = relativeId;
+      
+      // Vínculo bidirecional: Se João é esposo de Maria, Maria é esposa de João
+      await prisma.familyMember.update({
+        where: { id: relativeId },
+        data: { spouseId: memberId }
+      });
+    }
 
     return await prisma.familyMember.update({
-      where: { id: member.id },
+      where: { id: memberId },
       data: updateData
     });
   }
 
-  // Busca dados completos para a Árvore Genealógica visual
+  /**
+   * 4. Vincula um Membro Visual a um Usuário Real.
+   * Use isto quando seu sobrinho criar uma conta e você quiser "fundir"
+   * o registro visual dele com a conta nova.
+   */
+  async connectUserToMember(memberId: string, userId: string) {
+    return await prisma.familyMember.update({
+      where: { id: memberId },
+      data: { userId: userId }
+    });
+  }
+
+  // Busca dados para a árvore (Mantido para compatibilidade)
   async getTreeData() {
     return await prisma.familyMember.findMany({
       include: {

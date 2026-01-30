@@ -4,7 +4,7 @@ import { FamilyService } from '../services/FamilyService';
 const familyService = new FamilyService();
 
 export const familyController = {
-  // Lista membros para o Admin
+  // GET /family/members
   index: async (req: Request, res: Response) => {
     try {
       const members = await familyService.listAllMembers();
@@ -14,7 +14,17 @@ export const familyController = {
     }
   },
 
-  // Realiza o vínculo de parentesco
+  // POST /family/manual (NOVO: Cria membro sem conta)
+  createManual: async (req: Request, res: Response) => {
+    try {
+      const member = await familyService.createVisualMember(req.body);
+      return res.status(201).json(member);
+    } catch (error) {
+      return res.status(500).json({ message: "Erro ao criar membro manual." });
+    }
+  },
+
+  // POST /family/link
   link: async (req: Request, res: Response) => {
     const { memberId, relativeId, type } = req.body;
     try {
@@ -25,7 +35,7 @@ export const familyController = {
     }
   },
 
-  // Retorna os dados para a Árvore
+  // GET /family/tree
   getTree: async (req: Request, res: Response) => {
     try {
       const tree = await familyService.getTreeData();
