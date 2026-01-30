@@ -7,9 +7,8 @@ import { API_URL } from '@/app/config/api';
 
 export function Header() {
   const router = useRouter();
-  // Estado local apenas para controlar a UI (mostrar nome/botão sair)
-  // A autenticação real é via Cookie HttpOnly no backend
-  const [user, setUser] = useState<{ name: string } | null>(null);
+  // Atualizado para incluir a Role no estado
+  const [user, setUser] = useState<{ name: string; role?: string } | null>(null);
 
   useEffect(() => {
     // Hidratação: Pega os dados do usuário salvos no navegador ao carregar
@@ -38,8 +37,6 @@ export function Header() {
   };
 
   return (
-    // Responsividade: Mobile (flex-col) vs Desktop (md:flex-row)
-    // Dark Mode: Bordas e textos ajustados para contraste em fundo escuro
     <header className="mb-8 border-b border-gray-300 dark:border-gray-700 pb-4 flex flex-col md:flex-row justify-between items-center gap-4">
       
       {/* Branding */}
@@ -59,6 +56,16 @@ export function Header() {
             <span className="text-sm text-gray-600 dark:text-gray-300 hidden sm:block">
               Olá, <strong>{user.name}</strong>
             </span>
+
+            {/* BOTÃO EXCLUSIVO ADMIN: Acesso à Árvore Genealógica */}
+            {user.role === 'ADMIN' && (
+              <Link 
+                href="/admin/family"
+                className="bg-amber-500 text-white px-4 py-2 rounded text-sm font-medium hover:bg-amber-600 transition shadow-sm"
+              >
+                Árvore
+              </Link>
+            )}
             
             <Link 
               href="/posts/new"
