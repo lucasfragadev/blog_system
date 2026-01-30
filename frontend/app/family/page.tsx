@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import * as d3 from 'd3';
 import { Header } from '@/components/Header';
 import { API_URL } from '@/app/config/api';
@@ -28,16 +29,14 @@ interface TreeNodeData {
 type TreeNode = d3.HierarchyNode<TreeNodeData>;
 
 export default function FamilyTreeD3Page() {
+  const router = useRouter();
   const svgRef = useRef<SVGSVGElement>(null);
   const [loading, setLoading] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string>('Iniciando...');
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
-    console.log('🔍 Componente montado');
-    setDebugInfo('Componente montado');
-    
     const checkTheme = () => setIsDarkMode(document.documentElement.classList.contains('dark'));
     checkTheme();
     const observer = new MutationObserver(checkTheme);
@@ -46,71 +45,74 @@ export default function FamilyTreeD3Page() {
   }, []);
 
   useEffect(() => {
-    console.log('🔍 Iniciando fetchAndRenderTree');
-    setDebugInfo('Iniciando busca de dados...');
-    fetchAndRenderTree();
-  }, [isDarkMode]);
+    // Primeiro buscar dados do usuário atual, depois carregar árvore
+    fetchCurrentUserAndTree();
+  }, []);
 
-  const fetchAndRenderTree = async () => {
+  const fetchCurrentUserAndTree = async () => {
     try {
-      console.log('🔍 Buscando token e usuário');
-      setDebugInfo('Verificando autenticação...');
+      setLoading(true);
       
-      const token = localStorage.getItem('token');
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      
-      console.log('🔍 Token:', token ? 'Existe' : 'Não existe');
-      console.log('🔍 User:', user);
-      setDebugInfo(`Token: ${token ? 'OK' : 'Não encontrado'}, User ID: ${user.id || 'Não encontrado'}`);
-
-      if (!token) {
-        throw new Error('Token não encontrado');
-      }
-
-      console.log('🔍 Fazendo requisição para API');
-      setDebugInfo('Fazendo requisição para API...');
-      
-      const res = await fetch(`${API_URL}/family/tree`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      // 1. Buscar dados do usuário atual (usando cookies HttpOnly)
+      const userRes = await fetch(`${API_URL}/users/me`, {
+        credentials: 'include', // Importante: inclui cookies HttpOnly
+        headers: {
+          'Content-Type': 'application/json',
+        }
       });
 
-      console.log('🔍 Status da resposta:', res.status);
-      setDebugInfo(`Resposta da API: ${res.status}`);
-
-      if (!res.ok) {
-        throw new Error(`Erro na API: ${res.status}`);
+      if (userRes.status === 401) {
+        // Não autenticado, redirecionar para login
+        router.push('/login');
+        return;
       }
 
-      const data: FamilyMember[] = await res.json();
-      console.log('🔍 Dados recebidos:', data.length, 'membros');
-      setDebugInfo(`Dados recebidos: ${data.length} membros`);
+      if (!userRes.ok) {
+        throw new Error(`Erro ao buscar usuário: ${userRes.status}`);
+      }
 
-      const me = data.find((m: FamilyMember) => m.user?.id === user.id);
-      console.log('🔍 Usuário encontrado:', me ? me.name : 'Não encontrado');
-      setDebugInfo(`Usuário: ${me ? me.name : 'Não encontrado'}`);
+      const userData = await userRes.json();
+      setCurrentUser(userData);
+
+      // 2. Buscar dados da árvore genealógica
+      const treeRes = await fetch(`${API_URL}/family/tree`, {
+        credentials: 'include', // Importante: inclui cookies HttpOnly
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!treeRes.ok) {
+        if (treeRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error(`Erro ao buscar árvore: ${treeRes.status}`);
+      }
+
+      const treeData: FamilyMember[] = await treeRes.json();
+
+      if (treeData.length === 0) {
+        setError('Nenhum membro da família encontrado. Adicione membros primeiro.');
+        return;
+      }
+
+      // 3. Encontrar o membro da família vinculado ao usuário
+      const me = treeData.find((m: FamilyMember) => m.user?.id === userData.id);
 
       if (!me) {
-        throw new Error('Usuário não encontrado nos dados da família');
+        setError('Seu perfil não foi encontrado na árvore genealógica. Verifique se você está cadastrado como membro da família.');
+        return;
       }
 
-      console.log('🔍 Construindo hierarquia');
-      setDebugInfo('Construindo árvore genealógica...');
-      
-      // Transformar dados em hierarquia D3
-      const hierarchyData = buildHierarchy(data, me);
-      console.log('🔍 Hierarquia construída:', hierarchyData);
-      
-      console.log('🔍 Renderizando árvore');
-      setDebugInfo('Renderizando árvore...');
+      // 4. Construir e renderizar árvore
+      const hierarchyData = buildHierarchy(treeData, me);
       renderTree(hierarchyData, me);
-      
-      setDebugInfo('Árvore renderizada com sucesso!');
-      
+
     } catch (err) {
-      console.error("❌ Erro na Árvore:", err);
+      console.error("Erro ao carregar árvore:", err);
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-      setError(errorMessage);
-      setDebugInfo(`Erro: ${errorMessage}`);
+      setError(`Erro ao carregar dados: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -232,16 +234,12 @@ export default function FamilyTreeD3Page() {
   };
 
   const buildHierarchy = (data: FamilyMember[], me: FamilyMember): TreeNodeData => {
-    console.log('🔍 Construindo hierarquia para:', me.name);
-    
     // Criar mapa de membros
     const memberMap = new Map(data.map(m => [m.id, m]));
     
     // Encontrar raiz da árvore (pessoa mais antiga sem pais)
     const roots = data.filter(m => !m.fatherId && !m.motherId);
     let root = roots[0] || me;
-
-    console.log('🔍 Raízes encontradas:', roots.length, 'Raiz escolhida:', root.name);
 
     // Se não há raiz clara, usar os pais do usuário como raiz
     if (me.fatherId || me.motherId) {
@@ -297,21 +295,14 @@ export default function FamilyTreeD3Page() {
       return node;
     };
 
-    const result = buildNode(root);
-    console.log('🔍 Hierarquia construída:', result);
-    return result;
+    return buildNode(root);
   };
 
   const renderTree = (data: TreeNodeData, me: FamilyMember) => {
-    console.log('🔍 Iniciando renderização');
-    
-    if (!svgRef.current) {
-      console.error('❌ SVG ref não encontrado');
-      return;
-    }
+    if (!svgRef.current) return;
 
     const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove(); // Limpar SVG
+    svg.selectAll("*").remove();
 
     const width = 1200;
     const height = 800;
@@ -319,10 +310,8 @@ export default function FamilyTreeD3Page() {
 
     svg.attr("width", width).attr("height", height);
 
-    // Criar grupo principal com zoom/pan
     const g = svg.append("g");
 
-    // Função helper para filtros
     const getNodeFilter = (d: TreeNode): string => {
       if (d.data.isMe) {
         return "drop-shadow(0 0 20px rgba(59, 130, 246, 0.6))";
@@ -333,40 +322,31 @@ export default function FamilyTreeD3Page() {
       return "none";
     };
 
-    // Configurar zoom com tipagem correta
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 2])
       .on("zoom", (event) => {
         g.attr("transform", event.transform);
       });
 
-    // Aplicar zoom com verificação de null
     if (svgRef.current) {
       d3.select(svgRef.current).call(zoom);
     }
 
-    // Criar layout de árvore D3
     const treeLayout = d3.tree<TreeNodeData>()
       .size([width - margin.left - margin.right, height - margin.top - margin.bottom])
       .separation((a, b) => {
-        // Mais espaço entre cônjuges e irmãos
         if (a.parent === b.parent) return 2;
         return 3;
       });
 
-    // Converter dados para hierarquia D3
     const root = d3.hierarchy(data);
     treeLayout(root);
 
-    console.log('🔍 Nós na árvore:', root.descendants().length);
-
-    // Ajustar posições com fallback seguro
     root.descendants().forEach((d) => {
       d.x = (d.x ?? 0) + margin.left;
       d.y = (d.y ?? 0) + margin.top;
     });
 
-    // Criar links com verificação de undefined
     g.selectAll(".link")
       .data(root.links())
       .enter().append("path")
@@ -380,14 +360,12 @@ export default function FamilyTreeD3Page() {
       .style("stroke-width", 2)
       .style("filter", isDarkMode ? "drop-shadow(0 0 6px rgba(74, 222, 128, 0.6))" : "none");
 
-    // Criar nós
     const nodes = g.selectAll(".node")
       .data(root.descendants())
       .enter().append("g")
       .attr("class", "node")
       .attr("transform", (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
 
-    // Círculos dos nós
     nodes.append("circle")
       .attr("r", 30)
       .style("fill", isDarkMode ? "#1f2937" : "#ffffff")
@@ -402,14 +380,12 @@ export default function FamilyTreeD3Page() {
         d3.select(this).transition().duration(200).attr("r", 30);
       });
 
-    // Emojis de gênero
     nodes.append("text")
       .attr("text-anchor", "middle")
       .attr("dy", "0.3em")
       .style("font-size", "24px")
       .text((d) => d.data.gender === 'MASCULINO' ? '👨' : '👩');
 
-    // Labels de parentesco
     nodes.filter((d) => Boolean(d.data.label))
       .append("rect")
       .attr("x", 20)
@@ -429,7 +405,6 @@ export default function FamilyTreeD3Page() {
       .style("fill", "white")
       .text((d) => d.data.label.toUpperCase());
 
-    // Nomes
     nodes.append("text")
       .attr("text-anchor", "middle")
       .attr("dy", "3.5em")
@@ -440,7 +415,6 @@ export default function FamilyTreeD3Page() {
         const text = d3.select(this);
         const words = d.data.name.split(/\s+/);
         
-        // Quebrar nome em múltiplas linhas se necessário
         if (words.length > 1) {
           text.text(null);
           words.forEach((word, i) => {
@@ -454,7 +428,6 @@ export default function FamilyTreeD3Page() {
         }
       });
 
-    // Centralizar árvore
     const bounds = g.node()?.getBBox();
     if (bounds && svgRef.current) {
       const fullWidth = bounds.width;
@@ -464,8 +437,6 @@ export default function FamilyTreeD3Page() {
       
       d3.select(svgRef.current).call(zoom.transform, d3.zoomIdentity.translate(centerX, centerY).scale(0.8));
     }
-
-    console.log('🔍 Renderização concluída');
   };
 
   const handleZoomIn = () => {
@@ -473,10 +444,7 @@ export default function FamilyTreeD3Page() {
       d3.select(svgRef.current)
         .transition()
         .duration(300)
-        .call(
-          d3.zoom<SVGSVGElement, unknown>().scaleBy,
-          1.5
-        );
+        .call(d3.zoom<SVGSVGElement, unknown>().scaleBy, 1.5);
     }
   };
 
@@ -485,10 +453,7 @@ export default function FamilyTreeD3Page() {
       d3.select(svgRef.current)
         .transition()
         .duration(300)
-        .call(
-          d3.zoom<SVGSVGElement, unknown>().scaleBy,
-          0.75
-        );
+        .call(d3.zoom<SVGSVGElement, unknown>().scaleBy, 0.75);
     }
   };
 
@@ -497,14 +462,11 @@ export default function FamilyTreeD3Page() {
       d3.select(svgRef.current)
         .transition()
         .duration(500)
-        .call(
-          d3.zoom<SVGSVGElement, unknown>().transform,
-          d3.zoomIdentity.translate(100, 100).scale(0.8)
-        );
+        .call(d3.zoom<SVGSVGElement, unknown>().transform, d3.zoomIdentity.translate(100, 100).scale(0.8));
     }
   };
 
-  // Se houver erro, mostrar tela de erro
+  // Tela de erro
   if (error) {
     return (
       <main className="h-screen w-full flex flex-col p-6 overflow-hidden bg-white dark:bg-black">
@@ -512,20 +474,26 @@ export default function FamilyTreeD3Page() {
         
         <div className="flex-1 bg-gray-50 dark:bg-gray-950 rounded-3xl border border-gray-200 dark:border-gray-800 overflow-hidden relative shadow-inner">
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-w-md">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-w-md text-center">
               <h2 className="text-xl font-bold text-red-600 mb-4">Erro na Árvore Genealógica</h2>
               <p className="text-gray-700 dark:text-gray-300 mb-4">{error}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Debug: {debugInfo}</p>
-              <button 
-                onClick={() => {
-                  setError(null);
-                  setLoading(true);
-                  fetchAndRenderTree();
-                }}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-              >
-                Tentar Novamente
-              </button>
+              <div className="flex gap-3 justify-center">
+                <button 
+                  onClick={() => router.push('/login')}
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  Fazer Login
+                </button>
+                <button 
+                  onClick={() => {
+                    setError(null);
+                    fetchCurrentUserAndTree();
+                  }}
+                  className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                >
+                  Tentar Novamente
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -542,14 +510,16 @@ export default function FamilyTreeD3Page() {
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md z-50">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
-              <p className="text-white font-medium">{debugInfo}</p>
+              <p className="text-white font-medium">Carregando árvore genealógica...</p>
+              {currentUser && (
+                <p className="text-white text-sm mt-2">Olá, {currentUser.name}!</p>
+              )}
             </div>
           </div>
         ) : (
           <div className="w-full h-full relative">
             <svg ref={svgRef} className="w-full h-full" />
             
-            {/* Controles de zoom */}
             <div className="absolute top-4 right-4 flex flex-col gap-2">
               <button 
                 onClick={handleZoomIn}
@@ -571,14 +541,17 @@ export default function FamilyTreeD3Page() {
               </button>
             </div>
 
-            {/* Info sobre D3 */}
             <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
               <p className="text-xs text-gray-600 dark:text-gray-400">
                 <strong>D3.js Tree Layout</strong><br/>
                 • Layout automático<br/>
                 • Zoom/Pan nativo<br/>
-                • Algoritmo hierárquico<br/>
-                • Debug: {debugInfo}
+                • Algoritmo hierárquico
+                {currentUser && (
+                  <>
+                    <br/>• Usuário: {currentUser.name}
+                  </>
+                )}
               </p>
             </div>
           </div>
