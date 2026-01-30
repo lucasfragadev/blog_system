@@ -1,7 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import ReactFlow, { Background, Controls, Edge, Node, NodeProps } from 'reactflow';
+import ReactFlow, { 
+  Background, 
+  Controls, 
+  Edge, 
+  Node, 
+  NodeProps,
+  BackgroundVariant // Importado para resolver o erro de tipo
+} from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Header } from '@/components/Header';
 import { API_URL } from '@/app/config/api';
@@ -45,75 +52,57 @@ export default function FamilyTreePage() {
   useEffect(() => { fetchTree(); }, [isDarkMode]);
 
   const fetchTree = async () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = localStorage.getItem('token');
+    const userString = localStorage.getItem('user');
+    const user = userString ? JSON.parse(userString) : {};
+
     try {
       const res = await fetch(`${API_URL}/family/tree`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
       const me = data.find((m: any) => m.user?.id === user.id);
 
-      // --- ALGORITMO DE DETECÇÃO DE GERAÇÃO E RÓTULO ---
       const getPOVInfo = (member: any) => {
         if (!me) return { label: "", color: "bg-gray-500", level: 3 };
         if (member.id === me.id) return { label: "Você", color: "bg-blue-500", level: 3 };
 
         const isM = member.gender === 'MASCULINO';
-        
-        // Relacionamentos Diretos
         const myParentsIds = [me.fatherId, me.motherId].filter(Boolean);
         const myChildrenIds = data.filter((m: any) => m.fatherId === me.id || m.motherId === me.id).map((m: any) => m.id);
         const myGrandparentsIds = data.filter((m: any) => myParentsIds.includes(m.id)).flatMap((p: any) => [p.fatherId, p.motherId]).filter(Boolean);
         const siblingIds = data.filter((m: any) => m.id !== me.id && ((m.fatherId && m.fatherId === me.fatherId) || (m.motherId && m.motherId === me.motherId))).map((s: any) => s.id);
 
-        // NÍVEL 0: Bisavós (Pais dos Avós)
         const myGreatGrandparentsIds = data.filter((m: any) => myGrandparentsIds.includes(m.id)).flatMap((g: any) => [g.fatherId, g.motherId]).filter(Boolean);
         if (myGreatGrandparentsIds.includes(member.id)) return { label: isM ? "Bisavô" : "Bisavó", color: "bg-green-900", level: 0 };
-
-        // NÍVEL 1: Avós (Pais dos Pais)
         if (myGrandparentsIds.includes(member.id)) return { label: isM ? "Avô" : "Avó", color: "bg-green-800", level: 1 };
-
-        // NÍVEL 2: Pais e Tios
         if (myParentsIds.includes(member.id)) return { label: isM ? "Pai" : "Mãe", color: "bg-green-600", level: 2 };
-        // Tios (Irmãos dos Pais)
-        const parentSiblings = data.filter((m: any) => m.id !== me.fatherId && m.id !== me.motherId && 
-          ((m.fatherId && myGrandparentsIds.includes(m.fatherId)) || (m.motherId && myGrandparentsIds.includes(m.motherId))));
-        if (parentSiblings.some((s: any) => s.id === member.id)) return { label: isM ? "Tio" : "Tia", color: "bg-green-400", level: 2 };
 
-        // NÍVEL 3: Você, Cônjuge, Irmãos e Cunhados
         if (member.id === me.spouseId) return { label: isM ? "Marido" : "Esposa", color: "bg-pink-500", level: 3 };
         if (siblingIds.includes(member.id)) return { label: isM ? "Irmão" : "Irmã", color: "bg-purple-600", level: 3 };
 
-        // NÍVEL 4: Filhos, Sobrinhos e Noras/Genros
         if (myChildrenIds.includes(member.id)) return { label: isM ? "Filho" : "Filha", color: "bg-teal-500", level: 4 };
         if (siblingIds.includes(member.fatherId) || siblingIds.includes(member.motherId)) return { label: isM ? "Sobrinho" : "Sobrinha", color: "bg-indigo-500", level: 4 };
 
-        // NÍVEL 5: Netos
         const isGrandchild = (member.fatherId && myChildrenIds.includes(member.fatherId)) || (member.motherId && myChildrenIds.includes(member.motherId));
         if (isGrandchild) return { label: isM ? "Neto" : "Neta", color: "bg-orange-500", level: 5 };
-
-        // NÍVEL 6: Bisnetos
-        const isGreatGrandchild = data.some((child: any) => myChildrenIds.includes(child.id) && (member.fatherId === child.id || member.motherId === child.id)); // Simplificado para fins de performance
-        if (isGreatGrandchild) return { label: isM ? "Bisneto" : "Bisneta", color: "bg-red-500", level: 6 };
 
         return { label: "", color: "bg-gray-500", level: 3 };
       };
 
-      // Gerar Nós com Coordenadas Inteligentes
       const newNodes = data.map((member: any, index: number) => {
         const info = getPOVInfo(member);
         return {
           id: member.id,
           type: 'familyNode',
           position: { 
-            x: (index * 260) - (data.length * 130), // Tenta centralizar horizontalmente
-            y: info.level * 300 // Espaçamento vertical entre gerações
+            x: (index * 260) - (data.length * 130),
+            y: info.level * 300 
           },
           data: { name: member.name, gender: member.gender, label: info.label, labelColor: info.color, isMe: member.user?.id === user.id },
         };
       });
 
-      // Gerar Linhas (Edges) de Conexão
       const newEdges: Edge[] = [];
       data.forEach((member: any) => {
         const style = { 
@@ -121,13 +110,8 @@ export default function FamilyTreePage() {
           strokeWidth: 3, 
           filter: isDarkMode ? 'drop-shadow(0 0 8px rgba(74, 222, 128, 0.8))' : 'none' 
         };
-
-        if (member.fatherId) {
-          newEdges.push({ id: `e-f-${member.id}`, source: member.fatherId, target: member.id, animated: true, style });
-        }
-        if (member.motherId) {
-          newEdges.push({ id: `e-m-${member.id}`, source: member.motherId, target: member.id, animated: true, style });
-        }
+        if (member.fatherId) newEdges.push({ id: `e-f-${member.id}`, source: member.fatherId, target: member.id, animated: true, style });
+        if (member.motherId) newEdges.push({ id: `e-m-${member.id}`, source: member.motherId, target: member.id, animated: true, style });
       });
 
       setNodes(newNodes);
@@ -145,7 +129,12 @@ export default function FamilyTreePage() {
           </div>
         ) : (
           <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView minZoom={0.1}>
-            <Background color={isDarkMode ? '#333' : '#ccc'} gap={20} variant="dots" />
+            {/* CORREÇÃO AQUI: Usando o Enum BackgroundVariant para evitar erro de tipo no build */}
+            <Background 
+              color={isDarkMode ? '#333' : '#ccc'} 
+              gap={20} 
+              variant={BackgroundVariant.Dots} 
+            />
             <Controls />
           </ReactFlow>
         )}
