@@ -73,7 +73,7 @@ export default function FamilyTreePage() {
         return;
       }
 
-      // --- LÓGICA DE GERAÇÕES E RÓTULOS MELHORADA ---
+      // --- LÓGICA DE GERAÇÕES E RÓTULOS CORRIGIDA ---
       const getPOVInfo = (member: any) => {
         if (member.id === me.id) return { label: "Você", color: "bg-blue-500", level: 4 };
 
@@ -102,30 +102,91 @@ export default function FamilyTreePage() {
 
         // Níveis Inferiores
         if (children.includes(member.id)) return { label: isM ? "Filho" : "Filha", color: "bg-teal-500", level: 5 };
-        if (siblings.includes(member.fatherId) || siblings.includes(member.motherId)) return { label: isM ? "Sobrinho" : "Sobrinha", color: "bg-indigo-500", level: 5 };
         if (grandchildren.includes(member.id)) return { label: isM ? "Neto" : "Neta", color: "bg-orange-500", level: 6 };
         if (greatGrandchildren.includes(member.id)) return { label: isM ? "Bisneto" : "Bisneta", color: "bg-red-500", level: 7 };
 
-        // Afinidade (Sogros, Noras, Genros)
+        // --- AFINIDADE CORRIGIDA ---
+        
+        // Sogros (pais do cônjuge)
         if (me.spouseId) {
           const spouse = data.find((m: any) => m.id === me.spouseId);
-          if (spouse && member.id === spouse.fatherId) return { label: "Sogro", color: "bg-green-700", level: 3 };
-          if (spouse && member.id === spouse.motherId) return { label: "Sogra", color: "bg-green-700", level: 3 };
+          if (spouse) {
+            if (member.id === spouse.fatherId) return { label: "Sogro", color: "bg-green-700", level: 3 };
+            if (member.id === spouse.motherId) return { label: "Sogra", color: "bg-green-700", level: 3 };
+          }
         }
 
-        // Verificar se é nora ou genro (cônjuge dos filhos)
-        const myChildren = data.filter((m: any) => m.fatherId === me.id || m.motherId === me.id);
-        for (const child of myChildren) {
-          if (member.id === child.spouseId) {
+        // Noras e Genros (cônjuges dos filhos)
+        for (const childId of children) {
+          const child = data.find((m: any) => m.id === childId);
+          if (child && child.spouseId === member.id) {
             return { label: isM ? "Genro" : "Nora", color: "bg-cyan-600", level: 5 };
           }
         }
 
-        // Verificar se é cunhado/cunhada (cônjuge dos irmãos)
+        // Cunhados/Cunhadas (cônjuges dos irmãos)
         for (const siblingId of siblings) {
           const sibling = data.find((m: any) => m.id === siblingId);
-          if (sibling && member.id === sibling.spouseId) {
+          if (sibling && sibling.spouseId === member.id) {
             return { label: isM ? "Cunhado" : "Cunhada", color: "bg-violet-600", level: 4 };
+          }
+        }
+
+        // Concunhados (irmãos do cônjuge)
+        if (me.spouseId) {
+          const spouse = data.find((m: any) => m.id === me.spouseId);
+          if (spouse) {
+            const spouseSiblings = data.filter((m: any) => 
+              m.id !== spouse.id && 
+              ((m.fatherId && m.fatherId === spouse.fatherId) || 
+               (m.motherId && m.motherId === spouse.motherId))
+            ).map((s: any) => s.id);
+            
+            if (spouseSiblings.includes(member.id)) {
+              return { label: isM ? "Cunhado" : "Cunhada", color: "bg-violet-600", level: 4 };
+            }
+          }
+        }
+
+        // Sobrinhos (filhos dos irmãos)
+        for (const siblingId of siblings) {
+          const sibling = data.find((m: any) => m.id === siblingId);
+          if (sibling && (member.fatherId === siblingId || member.motherId === siblingId)) {
+            return { label: isM ? "Sobrinho" : "Sobrinha", color: "bg-indigo-500", level: 5 };
+          }
+        }
+
+        // Tios (irmãos dos pais)
+        for (const parentId of parents) {
+          const parent = data.find((m: any) => m.id === parentId);
+          if (parent) {
+            const parentSiblings = data.filter((m: any) => 
+              m.id !== parentId && 
+              ((m.fatherId && m.fatherId === parent.fatherId) || 
+               (m.motherId && m.motherId === parent.motherId))
+            ).map((s: any) => s.id);
+            
+            if (parentSiblings.includes(member.id)) {
+              return { label: isM ? "Tio" : "Tia", color: "bg-amber-600", level: 3 };
+            }
+          }
+        }
+
+        // Primos (filhos dos tios)
+        for (const parentId of parents) {
+          const parent = data.find((m: any) => m.id === parentId);
+          if (parent) {
+            const parentSiblings = data.filter((m: any) => 
+              m.id !== parentId && 
+              ((m.fatherId && m.fatherId === parent.fatherId) || 
+               (m.motherId && m.motherId === parent.motherId))
+            );
+            
+            for (const uncle of parentSiblings) {
+              if (member.fatherId === uncle.id || member.motherId === uncle.id) {
+                return { label: isM ? "Primo" : "Prima", color: "bg-lime-600", level: 4 };
+              }
+            }
           }
         }
 
