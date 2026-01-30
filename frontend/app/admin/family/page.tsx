@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { API_URL } from '@/app/config/api';
+import { Header } from '@/components/Header';
 
 interface Member {
   id: string;
@@ -38,7 +39,9 @@ export default function AdminFamilyPage() {
   };
 
   const handleLink = async (memberId: string, type: 'father' | 'mother' | 'spouse') => {
-    const relativeId = prompt(`Digite o ID do ${type}:`);
+    const label = type === 'father' ? 'Pai' : type === 'mother' ? 'Mãe' : 'Cônjuge';
+    const relativeId = prompt(`Digite o ID do(a) ${label}: (Copie da coluna ID ao lado)`);
+    
     if (!relativeId) return;
 
     await fetch(`${API_URL}/family/link`, {
@@ -50,34 +53,44 @@ export default function AdminFamilyPage() {
       body: JSON.stringify({ memberId, relativeId, type })
     });
     
-    fetchMembers(); // Atualiza a lista
+    fetchMembers(); 
   };
 
   return (
-    <main className="p-8 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Gestão da Árvore Avelino Fraga</h1>
+    <main className="min-h-screen max-w-6xl mx-auto p-6">
+      <Header /> {/* Header */}
+
+      <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-white">
+        Gestão da Árvore Avelino Fraga
+      </h1>
       
-      <div className="bg-white dark:bg-gray-900 shadow rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 shadow-lg rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800">
         <table className="w-full text-left">
-          <thead className="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500">
+          <thead className="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 font-semibold">
             <tr>
-              <th className="p-4">Nome</th>
+              <th className="p-4">Nome / ID</th>
               <th className="p-4">Vínculos Atuais</th>
               <th className="p-4 text-right">Ações Admin</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
             {members.map(member => (
-              <tr key={member.id} className="text-sm">
-                <td className="p-4 font-medium">{member.name}</td>
-                <td className="p-4 text-gray-500">
-                  P: {member.familyMember?.father?.name || '---'} | 
-                  M: {member.familyMember?.mother?.name || '---'}
+              <tr key={member.id} className="text-sm hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                <td className="p-4">
+                  <div className="font-bold text-gray-800 dark:text-gray-200">{member.name}</div>
+                  <div className="text-[10px] text-gray-400 font-mono mt-1 bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded inline-block">
+                    {member.id}
+                  </div>
                 </td>
-                <td className="p-4 text-right space-x-2">
-                  <button onClick={() => handleLink(member.id, 'father')} className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs hover:bg-blue-100">Set Pai</button>
-                  <button onClick={() => handleLink(member.id, 'mother')} className="px-2 py-1 bg-pink-50 text-pink-600 rounded text-xs hover:bg-pink-100">Set Mãe</button>
-                  <button onClick={() => handleLink(member.id, 'spouse')} className="px-2 py-1 bg-purple-50 text-purple-600 rounded text-xs hover:bg-purple-100">Set Cônjuge</button>
+                <td className="p-4 text-gray-600 dark:text-gray-400 leading-relaxed">
+                  <div><strong>Pai:</strong> {member.familyMember?.father?.name || '---'}</div>
+                  <div><strong>Mãe:</strong> {member.familyMember?.mother?.name || '---'}</div>
+                  <div><strong>Cônjuge:</strong> {member.familyMember?.spouse?.name || '---'}</div>
+                </td>
+                <td className="p-4 text-right space-y-2 md:space-y-0 md:space-x-2">
+                  <button onClick={() => handleLink(member.id, 'father')} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition">Set Pai</button>
+                  <button onClick={() => handleLink(member.id, 'mother')} className="px-3 py-1.5 bg-pink-50 text-pink-600 rounded-lg text-xs font-medium hover:bg-pink-100 transition">Set Mãe</button>
+                  <button onClick={() => handleLink(member.id, 'spouse')} className="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-medium hover:bg-purple-100 transition">Set Cônjuge</button>
                 </td>
               </tr>
             ))}
