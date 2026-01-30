@@ -14,6 +14,6 @@ router.use('/posts', postRoutes);
 router.use('/users', userRoutes); 
 router.use('/comments', commentRoutes); 
 router.use('/likes', likeRoutes);
-router.use('/family', familyRoutes); // 2. E esta linha aqui!
+router.use('/family', familyRoutes);
 
 export default router;

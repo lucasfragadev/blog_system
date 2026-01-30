@@ -4,30 +4,34 @@ import { FamilyService } from '../services/FamilyService';
 const familyService = new FamilyService();
 
 export const familyController = {
-  // GET /family/members
+  // Lista membros para o Admin
   index: async (req: Request, res: Response) => {
     try {
       const members = await familyService.listAllMembers();
       return res.status(200).json(members);
     } catch (error) {
-      return res.status(500).json({ message: "Erro ao listar membros da família." });
+      return res.status(500).json({ message: "Erro ao listar membros." });
     }
   },
 
-  // POST /family/link
+  // Realiza o vínculo de parentesco
   link: async (req: Request, res: Response) => {
     const { memberId, relativeId, type } = req.body;
-
-    if (!memberId || !relativeId || !type) {
-      return res.status(400).json({ message: "Dados incompletos para realizar o vínculo." });
-    }
-
     try {
       const updated = await familyService.linkMembers(memberId, relativeId, type);
       return res.status(200).json(updated);
-    } catch (error: any) {
-      console.error(error);
-      return res.status(500).json({ message: "Erro ao criar vínculo de parentesco." });
+    } catch (error) {
+      return res.status(500).json({ message: "Erro ao criar vínculo." });
+    }
+  },
+
+  // Retorna os dados para a Árvore
+  getTree: async (req: Request, res: Response) => {
+    try {
+      const tree = await familyService.getTreeData();
+      return res.status(200).json(tree);
+    } catch (error) {
+      return res.status(500).json({ message: "Erro ao buscar árvore." });
     }
   }
 };

@@ -5,7 +5,10 @@ import { adminMiddleware } from '../middlewares/adminMiddleware';
 
 const familyRoutes = Router();
 
-// Apenas ADMIN pode ver a lista bruta de membros e realizar conexões
+// Rota pública para todos os logados verem a árvore
+familyRoutes.get('/tree', authMiddleware, familyController.getTree);
+
+// Rotas restritas ao ADMIN para gestão
 familyRoutes.get('/members', authMiddleware, adminMiddleware, familyController.index);
 familyRoutes.post('/link', authMiddleware, adminMiddleware, familyController.link);
 

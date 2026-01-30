@@ -1,7 +1,7 @@
 import { prisma } from '../config/prisma';
 
 export class FamilyService {
-  // Lista todos os usuários e seus respectivos vínculos na árvore
+  // Lista membros para o painel de ADMIN
   async listAllMembers() {
     return await prisma.user.findMany({
       select: {
@@ -20,11 +20,10 @@ export class FamilyService {
     });
   }
 
-  // Cria ou atualiza o vínculo de parentesco
+  // Cria ou atualiza o vínculo de parentesco (Pai, Mãe ou Cônjuge)
   async linkMembers(memberId: string, relativeId: string, type: 'father' | 'mother' | 'spouse') {
-    // 1. Garantir que o membro principal tenha um registro em FamilyMember
+    // 1. Garante que o membro principal exista na tabela FamilyMember
     let member = await prisma.familyMember.findFirst({ where: { user: { id: memberId } } });
-    
     if (!member) {
       const user = await prisma.user.findUnique({ where: { id: memberId } });
       member = await prisma.familyMember.create({
@@ -37,9 +36,8 @@ export class FamilyService {
       });
     }
 
-    // 2. Garantir que o parente tenha um registro em FamilyMember
+    // 2. Garante que o parente exista na tabela FamilyMember
     let relative = await prisma.familyMember.findFirst({ where: { user: { id: relativeId } } });
-    
     if (!relative) {
       const relUser = await prisma.user.findUnique({ where: { id: relativeId } });
       relative = await prisma.familyMember.create({
@@ -52,7 +50,7 @@ export class FamilyService {
       });
     }
 
-    // 3. Aplicar o vínculo conforme o tipo
+    // 3. Aplica o vínculo
     const updateData: any = {};
     if (type === 'father') updateData.fatherId = relative.id;
     if (type === 'mother') updateData.motherId = relative.id;
@@ -61,6 +59,18 @@ export class FamilyService {
     return await prisma.familyMember.update({
       where: { id: member.id },
       data: updateData
+    });
+  }
+
+  // Busca dados completos para a Árvore Genealógica visual
+  async getTreeData() {
+    return await prisma.familyMember.findMany({
+      include: {
+        father: true,
+        mother: true,
+        spouse: true,
+        user: { select: { id: true, name: true, gender: true } }
+      }
     });
   }
 }
