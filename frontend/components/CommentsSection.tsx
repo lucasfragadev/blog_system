@@ -17,6 +17,16 @@ interface Props {
   postId: string;
 }
 
+const formatDate = (dateString: string) => {
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(dateString));
+};
+
 export function CommentsSection({ postId }: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -130,7 +140,7 @@ export function CommentsSection({ postId }: Props) {
                     {comment.author?.name || 'Desconhecido'}
                   </span>
                   <span className="text-xs text-gray-400 dark:text-gray-500">
-                    • {new Date(comment.createdAt).toLocaleDateString()}
+                    • {formatDate(comment.createdAt)}
                   </span>
                 </div>
                 <p className="text-gray-600 dark:text-gray-300 text-sm whitespace-pre-wrap">
