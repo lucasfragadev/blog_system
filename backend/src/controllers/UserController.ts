@@ -14,10 +14,17 @@ const passwordRegex = /^(?=.*[!@#$%^&*(),.?":{}|<>]).{6,}$/;
 export const userController = {
 
   create: async (req: Request, res: Response) => {
-    const { name, email, password, confirmPassword } = req.body;
+    // Destruturando novos campos
+    const { name, email, password, confirmPassword, birthDate, gender } = req.body;
 
-    if (!name || !email || !password || !confirmPassword) {
-      return res.status(400).json({ message: "Nome, e-mail, senha e confirmação são obrigatórios." });
+    if (!name || !email || !password || !confirmPassword || !gender) {
+      return res.status(400).json({ message: "Nome, e-mail, senha, confirmação e gênero são obrigatórios." });
+    }
+
+    // Validação do Enum de Gênero
+    const validGenders = ['MASCULINO', 'FEMININO', 'OUTRO'];
+    if (!validGenders.includes(gender)) {
+      return res.status(400).json({ message: "Gênero selecionado é inválido." });
     }
 
     if (password !== confirmPassword) {
@@ -31,7 +38,8 @@ export const userController = {
     }
 
     try {
-      const newUser = await userService.register({ name, email, password });
+      // Passando novos dados para o service
+      const newUser = await userService.register({ name, email, password, birthDate, gender });
 
       try {
         await emailService.sendWelcomeEmail(email, name);
