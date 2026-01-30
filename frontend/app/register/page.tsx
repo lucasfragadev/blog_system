@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { API_URL } from '../config/api';
+// Se não tiver lucide-react, rode: npm install lucide-react
+import { Eye, EyeOff } from 'lucide-react'; 
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -11,7 +13,10 @@ export default function RegisterPage() {
     name: '',
     email: '',
     password: '',
+    confirmPassword: '', // Item 2: Campo de confirmação
   });
+  
+  const [showPassword, setShowPassword] = useState(false); // Item 1: Estado do "olhinho"
   const [error, setError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -21,6 +26,12 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validação de Frontend: Evita bater na API se as senhas forem diferentes
+    if (formData.password !== formData.confirmPassword) {
+      setError('As senhas não coincidem!');
+      return;
+    }
 
     try {
       const res = await fetch(`${API_URL}/auth/register`, {
@@ -44,7 +55,6 @@ export default function RegisterPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
-      {/* CARD: Estilos para Dark Mode adicionados */}
       <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-md border border-gray-200 dark:border-gray-800 w-full max-w-md transition-colors">
         
         <h1 className="text-2xl font-bold mb-6 text-center text-gray-800 dark:text-gray-100">
@@ -64,7 +74,6 @@ export default function RegisterPage() {
               name="name"
               type="text"
               required
-              // INPUTS: Padronizados com o Login
               className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 
               dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-blue-400"
               onChange={handleChange}
@@ -83,11 +92,34 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div>
+          {/* CAMPO SENHA COM OLHINHO */}
+          <div className="relative">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Senha</label>
+            <div className="relative">
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                required
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 
+                dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-blue-400 pr-10"
+                onChange={handleChange}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+          </div>
+
+          {/* CAMPO CONFIRMAÇÃO DE SENHA */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirme a Senha</label>
             <input
-              name="password"
-              type="password"
+              name="confirmPassword"
+              type={showPassword ? "text" : "password"}
               required
               className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 
               dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-blue-400"

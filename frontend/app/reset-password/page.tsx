@@ -3,6 +3,8 @@
 import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { API_URL } from '@/app/config/api';
+// Importação dos ícones para o "olhinho"
+import { Eye, EyeOff } from 'lucide-react'; 
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -11,19 +13,21 @@ function ResetPasswordForm() {
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false); // Estado do "olhinho"
   const [message, setMessage] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 1. Validação local (mesma regra do seu backend)
+    // 1. Validação local (Mínimo 6 caracteres e 1 símbolo especial)
     const passwordRegex = /^(?=.*[!@#$%^&*(),.?":{}|<>]).{6,}$/;
     if (!passwordRegex.test(password)) {
       setMessage({ type: 'error', text: 'A senha deve ter pelo menos 6 caracteres e um símbolo especial.' });
       return;
     }
 
+    // 2. Validação de confirmação no Frontend
     if (password !== confirmPassword) {
       setMessage({ type: 'error', text: 'As senhas não coincidem.' });
       return;
@@ -35,7 +39,12 @@ function ResetPasswordForm() {
       const res = await fetch(`${API_URL}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, newPassword: password }),
+        // Enviamos confirmPassword para bater com a validação do seu novo Backend
+        body: JSON.stringify({ 
+          token, 
+          newPassword: password, 
+          confirmPassword: confirmPassword 
+        }),
       });
 
       const data = await res.json();
@@ -66,21 +75,32 @@ function ResetPasswordForm() {
       <h1 className="text-2xl font-bold mb-6 dark:text-gray-100">Redefinir Senha</h1>
       
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
+        {/* CAMPO: NOVA SENHA */}
+        <div className="relative">
           <label className="block text-sm font-medium mb-1 dark:text-gray-300">Nova Senha</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-            required
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white pr-10"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
         </div>
 
+        {/* CAMPO: CONFIRMAR SENHA */}
         <div>
           <label className="block text-sm font-medium mb-1 dark:text-gray-300">Confirmar Nova Senha</label>
           <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             className="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white"
@@ -106,10 +126,9 @@ function ResetPasswordForm() {
   );
 }
 
-// O Next.js exige Suspense ao usar useSearchParams em páginas estáticas
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="text-center mt-12">Carregando...</div>}>
+    <Suspense fallback={<div className="text-center mt-12 text-gray-100">Carregando formulário...</div>}>
       <ResetPasswordForm />
     </Suspense>
   );

@@ -3,7 +3,7 @@ export const swaggerDocument = {
   info: {
     title: "A Grande Família Blog API",
     description: "API RESTful completa para sistema de blog familiar com autenticação JWT (HttpOnly Cookies), controle de acesso, curtidas e comentários.",
-    version: "1.2.0",
+    version: "1.2.1", // Incremento de versão pela nova feature de validação
     contact: {
       name: "Lucas Avelino Fraga",
       email: "lucasfraga.dev@gmail.com"
@@ -46,9 +46,10 @@ export const swaggerDocument = {
         properties: {
           name: { type: "string", example: "Lucas Avelino" },
           email: { type: "string", format: "email" },
-          password: { type: "string", format: "password", example: "SenhaForte123!" }
+          password: { type: "string", format: "password", example: "SenhaForte123!" },
+          confirmPassword: { type: "string", format: "password", example: "SenhaForte123!" }
         },
-        required: ["name", "email", "password"]
+        required: ["name", "email", "password", "confirmPassword"]
       },
       Post: {
         type: "object",
@@ -133,7 +134,19 @@ export const swaggerDocument = {
         tags: ["Authentication"],
         summary: "Redefinir senha com token",
         requestBody: {
-          content: { "application/json": { schema: { type: "object", properties: { token: { type: "string" }, newPassword: { type: "string" } } } } }
+          content: { 
+            "application/json": { 
+              schema: { 
+                type: "object", 
+                properties: { 
+                  token: { type: "string" }, 
+                  newPassword: { type: "string", format: "password" },
+                  confirmPassword: { type: "string", format: "password" }
+                },
+                required: ["token", "newPassword", "confirmPassword"]
+              } 
+            } 
+          }
         },
         responses: { "200": { description: "Senha alterada com sucesso" } }
       }
