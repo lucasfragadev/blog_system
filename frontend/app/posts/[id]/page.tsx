@@ -19,24 +19,27 @@ interface Post {
   isLiked: boolean;
 }
 
-// Data Fetching no Server Side:
+const formatDate = (dateString: string) => {
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(dateString));
+};
+
 async function getPost(id: string): Promise<Post | null> {
   try {
-    // PADRÃO COOKIE FORWARDING:
-    // O Next.js (Servidor) está no meio do caminho entre o Navegador e o Backend API.
-    // Precisamos pegar o cookie que veio do navegador...
     const cookieStore = await cookies();
     const token = cookieStore.get('token');
-
     const headers: HeadersInit = {};
-    // ... e repassá-lo manualmente no header da requisição fetch para a API.
-    // Sem isso, a API acharia que é um acesso anônimo e retornaria isLiked: false.
     if (token) {
       headers['Cookie'] = `token=${token.value}`;
     }
    
     const res = await fetch(`${API_URL}/posts/${id}`, {
-      cache: 'no-store', // Garante dados sempre frescos (Dynamic Rendering)
+      cache: 'no-store',
       headers: headers, 
     });
 
@@ -82,7 +85,8 @@ export default async function PostPage({ params }: Props) {
             {post.author?.name || 'Autor Desconhecido'}
           </span>
           <span>•</span>
-          <time>{new Date(post.createdAt).toLocaleDateString()}</time>
+          {/* Data e Hora formatadas */}
+          <time>{formatDate(post.createdAt)}</time>
         </div>
         
         <h1 className="text-4xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
@@ -90,14 +94,11 @@ export default async function PostPage({ params }: Props) {
         </h1>
       </header>
 
-      {/* Renderização de Markdown: Converte texto puro em HTML rico */}
       <article className="prose prose-lg prose-slate dark:prose-invert max-w-none">
         <ReactMarkdown>{post.content}</ReactMarkdown>
       </article>
 
-      {/* Toolbar: Likes + Ações de Admin/Dono */}
       <div className="flex items-center justify-between border-t border-b border-gray-100 dark:border-gray-800 py-4 my-6">
-        
         <div className="flex items-center gap-4">
             <LikeButton 
                 postId={post.id} 
@@ -105,15 +106,12 @@ export default async function PostPage({ params }: Props) {
                 initialLiked={post.isLiked || false} 
             />
         </div>
-
          <div className="flex gap-2">
-            {/* O PostActions decide internamente se mostra os botões (se for dono ou admin) */}
             <PostActions postId={post.id} authorId={post.authorId || ''} />
          </div>
       </div>
 
       <CommentsSection postId={post.id} />
-
     </main>
   );
 }

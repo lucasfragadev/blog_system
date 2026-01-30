@@ -1,6 +1,6 @@
 import { Header } from '@/components/Header';
 import { LikeButton } from '@/components/LikeButton';
-import { API_URL } from '../../frontend/app/config/api';
+import { API_URL } from '@/app/config/api';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 
@@ -16,12 +16,16 @@ interface Post {
   isLiked: boolean;
 }
 
-/**
- * Busca posts no Server Side.
- * CRÍTICO: Como é uma requisição Servidor -> Servidor, os cookies do navegador
- * não vão automaticamente. Precisamos extraí-los e repassar manualmente no header
- * para que o Backend reconheça o usuário logado e retorne o status 'isLiked'.
- */
+const formatDate = (dateString: string) => {
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(dateString));
+};
+
 async function getPosts(): Promise<Post[]> {
   try {
     const cookieStore = await cookies();
@@ -32,28 +36,23 @@ async function getPosts(): Promise<Post[]> {
     };
     if (token) {
       headers['Cookie'] = `token=${token.value}`;
-
       headers['Authorization'] = `Bearer ${token.value}`;
     }
 
     const res = await fetch(`${API_URL}/posts`, { 
-      cache: 'no-store', // Garante dados frescos (evita cache estático do Next.js)
+      cache: 'no-store',
       headers
     });
 
-    if (!res.ok) {
-      console.error(`Erro no backend: ${res.status}`);
-      throw new Error('Falha ao buscar posts');
-    }
+    if (!res.ok) throw new Error('Falha ao buscar posts');
 
     return res.json();
   } catch (error) {
     console.error("Erro de conexão:", error);
-    return []; // Retorna array vazio para não quebrar a UI
+    return [];
   }
 }
 
-// Utilitário para limpar formatação Markdown e exibir prévia de texto puro
 function stripMarkdown(markdown: string): string {
   if (!markdown) return '';
   return markdown
@@ -72,18 +71,15 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen max-w-4xl mx-auto p-6">
-      
       <Header />
 
       <section className="flex flex-col gap-4">
         {posts.length === 0 ? (
           <div className="p-6 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 text-center text-gray-500">
             <p>Nenhum post encontrado.</p>
-            <p className="text-sm mt-2">Verifique a conexão com o backend.</p>
           </div>
         ) : (
           posts.map((post) => (
-            // O Link envolve todo o card para torná-lo clicável
             <Link key={post.id} href={`/posts/${post.id}`} className="block">
               <article 
                 className="group p-5 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer h-full"
@@ -93,7 +89,8 @@ export default async function Home() {
                     {post.author?.name || 'Anônimo'}
                   </span>
                   <span>•</span>
-                  <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                  {/* Data formatada com hora */}
+                  <span>{formatDate(post.createdAt)}</span>
                 </div>
                 
                 <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-2">
@@ -104,20 +101,16 @@ export default async function Home() {
                   {stripMarkdown(post.content)}
                 </p>
 
-                {/* Footer do Card */}
                 <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-800 pt-3 mt-2">
-                  {/* O LikeButton possui e.stopPropagation() para não disparar o Link do card */}
                   <LikeButton 
                     postId={post.id} 
                     initialLikes={post.likeCount || 0} 
                     initialLiked={post.isLiked || false} 
                   />
-                  
                   <span className="text-xs text-gray-400 hover:text-blue-500 transition">
                     Ler mais →
                   </span>
                 </div>
-
               </article>
             </Link>
           ))
