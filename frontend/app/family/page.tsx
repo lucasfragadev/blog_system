@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import * as d3 from 'd3';
 import { Header } from '@/components/Header';
@@ -35,6 +35,8 @@ export default function FamilyTreeD3Page() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [treeData, setTreeData] = useState<TreeNodeData | null>(null);
+  const [meData, setMeData] = useState<FamilyMember | null>(null);
 
   useEffect(() => {
     const checkTheme = () => setIsDarkMode(document.documentElement.classList.contains('dark'));
@@ -47,6 +49,14 @@ export default function FamilyTreeD3Page() {
   useEffect(() => {
     fetchCurrentUserAndTree();
   }, []);
+
+  // ✅ RENDERIZAR QUANDO SVG ESTIVER DISPONÍVEL E DADOS CARREGADOS
+  useEffect(() => {
+    if (treeData && meData && svgRef.current && !loading) {
+      console.log('🔍 SVG disponível, renderizando árvore...');
+      renderTree(treeData, meData);
+    }
+  }, [treeData, meData, loading, isDarkMode]);
 
   const fetchCurrentUserAndTree = async () => {
     try {
@@ -91,16 +101,16 @@ export default function FamilyTreeD3Page() {
         throw new Error(`Erro ao buscar árvore: ${treeRes.status}`);
       }
 
-      const treeData: FamilyMember[] = await treeRes.json();
-      console.log('✅ Dados da árvore:', treeData.length, 'membros');
+      const familyData: FamilyMember[] = await treeRes.json();
+      console.log('✅ Dados da árvore:', familyData.length, 'membros');
 
-      if (treeData.length === 0) {
+      if (familyData.length === 0) {
         setError('Nenhum membro da família encontrado. Adicione membros primeiro.');
         return;
       }
 
       // 3. Encontrar o membro da família vinculado ao usuário
-      const me = treeData.find((m: FamilyMember) => m.user?.id === userData.id);
+      const me = familyData.find((m: FamilyMember) => m.user?.id === userData.id);
       console.log('✅ Meu perfil na árvore:', me ? me.name : 'Não encontrado');
 
       if (!me) {
@@ -108,14 +118,14 @@ export default function FamilyTreeD3Page() {
         return;
       }
 
-      // 4. Construir e renderizar árvore
+      // 4. Construir hierarquia
       console.log('🔍 Construindo hierarquia...');
-      const hierarchyData = buildHierarchy(treeData, me);
+      const hierarchyData = buildHierarchy(familyData, me);
       console.log('✅ Hierarquia construída:', hierarchyData);
       
-      console.log('🔍 Renderizando árvore...');
-      renderTree(hierarchyData, me);
-      console.log('✅ Árvore renderizada!');
+      // 5. Salvar dados para renderização posterior
+      setTreeData(hierarchyData);
+      setMeData(me);
 
     } catch (err) {
       console.error("❌ Erro ao carregar árvore:", err);
@@ -241,7 +251,6 @@ export default function FamilyTreeD3Page() {
     return { label: "", color: "#6b7280", level: 0 };
   };
 
-  // ✅ FUNÇÃO CORRIGIDA PARA EVITAR LOOP INFINITO
   const buildHierarchy = (data: FamilyMember[], me: FamilyMember): TreeNodeData => {
     console.log('🔍 Iniciando buildHierarchy para:', me.name);
     
@@ -345,13 +354,16 @@ export default function FamilyTreeD3Page() {
     return result;
   };
 
-  const renderTree = (data: TreeNodeData, me: FamilyMember) => {
+  // ✅ FUNÇÃO DE RENDERIZAÇÃO COM VERIFICAÇÃO MELHORADA
+  const renderTree = useCallback((data: TreeNodeData, me: FamilyMember) => {
     console.log('🔍 Iniciando renderização da árvore');
     
     if (!svgRef.current) {
-      console.error('❌ SVG ref não encontrado');
+      console.error('❌ SVG ref ainda não está disponível');
       return;
     }
+
+    console.log('✅ SVG ref encontrado, continuando renderização...');
 
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
@@ -380,9 +392,7 @@ export default function FamilyTreeD3Page() {
         g.attr("transform", event.transform);
       });
 
-    if (svgRef.current) {
-      d3.select(svgRef.current).call(zoom);
-    }
+    svg.call(zoom);
 
     const treeLayout = d3.tree<TreeNodeData>()
       .size([width - margin.left - margin.right, height - margin.top - margin.bottom])
@@ -490,17 +500,17 @@ export default function FamilyTreeD3Page() {
 
     // Centralizar árvore
     const bounds = g.node()?.getBBox();
-    if (bounds && svgRef.current) {
+    if (bounds) {
       const fullWidth = bounds.width;
       const fullHeight = bounds.height;
       const centerX = width / 2 - fullWidth / 2 - bounds.x;
       const centerY = height / 2 - fullHeight / 2 - bounds.y;
       
-      d3.select(svgRef.current).call(zoom.transform, d3.zoomIdentity.translate(centerX, centerY).scale(0.8));
+      svg.call(zoom.transform, d3.zoomIdentity.translate(centerX, centerY).scale(0.8));
     }
 
-    console.log('✅ Renderização concluída!');
-  };
+    console.log('✅ Renderização concluída com sucesso!');
+  }, [isDarkMode]);
 
   const handleZoomIn = () => {
     if (svgRef.current) {
