@@ -10,23 +10,69 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// --- ENUMS NOVOS ---
+
+enum Gender {
+  MASCULINO
+  FEMININO
+  OUTRO
+}
+
 // Modelo de Usuário
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("USER")
-  createdAt DateTime @default(now())
+  id                 String    @id @default(uuid())
+  name               String
+  email              String    @unique
+  password           String
+  role               String    @default("USER")
+  createdAt          DateTime  @default(now())
   resetToken         String?   @unique
   resetTokenExpires  DateTime?
+  
+  // Novos campos para a Árvore
+  gender             Gender    @default(OUTRO)
+  birthDate          DateTime?
 
   // Relacionamentos
-  posts     Post[]
-  comments  Comment[]
-  likes     Like[]
+  posts              Post[]
+  comments           Comment[]
+  likes              Like[]
+  
+  // Vínculo com a Árvore Genealógica
+  familyMember       FamilyMember? @relation(fields: [familyMemberId], references: [id])
+  familyMemberId     String?       @unique
 
   @@map("users")
+}
+
+// Modelo para Membros da Família (Árvore)
+// Permite cadastrar quem não tem conta (crianças, antepassados)
+model FamilyMember {
+  id        String    @id @default(uuid())
+  name      String
+  birthDate DateTime?
+  gender    Gender    @default(OUTRO)
+  isAlive   Boolean   @default(true)
+
+  // RELAÇÕES PRIMÁRIAS (Auto-relacionamento)
+  // Aqui é onde a mágica acontece: ligamos um membro a outro
+  fatherId  String?
+  motherId  String?
+  spouseId  String?   @unique // Marido ou Esposa
+
+  father    FamilyMember?  @relation("FatherToChildren", fields: [fatherId], references: [id])
+  mother    FamilyMember?  @relation("MotherToChildren", fields: [motherId], references: [id])
+  spouse    FamilyMember?  @relation("SpouseRelation", fields: [spouseId], references: [id])
+
+  // Campos reversos necessários para o Prisma
+  childrenOfFather FamilyMember[] @relation("FatherToChildren")
+  childrenOfMother FamilyMember[] @relation("MotherToChildren")
+  partner          FamilyMember?  @relation("SpouseRelation")
+
+  // Link para a conta de usuário se ele existir
+  user      User?
+
+  @@map("family_members")
 }
 
 // Modelo de Post
