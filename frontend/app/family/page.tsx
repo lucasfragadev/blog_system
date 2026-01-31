@@ -30,17 +30,25 @@ interface FamilyMember {
   user?: { id: string };
 }
 
-interface TreeNodeData {
+interface NetworkNode extends d3.SimulationNodeDatum {
   id: string;
   name: string;
   gender: 'MASCULINO' | 'FEMININO';
   label: string;
   labelColor: string;
   isMe: boolean;
-  children?: TreeNodeData[];
+  generation: number; // Nível geracional (-2: avós, -1: pais, 0: você/irmãos, 1: filhos, 2: netos)
+  x?: number;
+  y?: number;
+  fx?: number | null;
+  fy?: number | null;
 }
 
-type TreeNode = d3.HierarchyNode<TreeNodeData>;
+interface NetworkLink extends d3.SimulationLinkDatum<NetworkNode> {
+  source: string | NetworkNode;
+  target: string | NetworkNode;
+  type: 'parent' | 'spouse' | 'child';
+}
 
 export default function FamilyTreeD3Page() {
   const router = useRouter();
@@ -49,7 +57,7 @@ export default function FamilyTreeD3Page() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [treeData, setTreeData] = useState<TreeNodeData | null>(null);
+  const [networkData, setNetworkData] = useState<{ nodes: NetworkNode[], links: NetworkLink[] } | null>(null);
   const [meData, setMeData] = useState<FamilyMember | null>(null);
 
   useEffect(() => {
@@ -122,10 +130,10 @@ export default function FamilyTreeD3Page() {
       }
 
       log('🔍 Construindo rede familiar completa...');
-      const networkData = buildFamilyNetwork(familyData, me);
-      log('✅ Rede familiar construída:', networkData);
+      const network = buildFamilyNetwork(familyData, me);
+      log('✅ Rede familiar construída:', network);
       
-      setTreeData(networkData);
+      setNetworkData(network);
       setMeData(me);
 
     } catch (err) {
@@ -163,6 +171,7 @@ export default function FamilyTreeD3Page() {
     if (children.some(c => c.id === member.id)) return { label: isM ? "Filho" : "Filha", color: "#0d9488", level: 1 };
     if (grandchildren.some(g => g.id === member.id)) return { label: isM ? "Neto" : "Neta", color: "#f59e0b", level: 2 };
 
+    // Sogros (pais do cônjuge)
     if (me.spouseId) {
       const spouse = allData.find((m: FamilyMember) => m.id === me.spouseId);
       if (spouse) {
@@ -171,18 +180,21 @@ export default function FamilyTreeD3Page() {
       }
     }
 
+    // Noras e Genros (cônjuges dos filhos)
     for (const child of children) {
       if (child.spouseId === member.id) {
         return { label: isM ? "Genro" : "Nora", color: "#0891b2", level: 1 };
       }
     }
 
+    // Cunhados/Cunhadas (cônjuges dos irmãos)
     for (const sibling of siblings) {
       if (sibling.spouseId === member.id) {
         return { label: isM ? "Cunhado" : "Cunhada", color: "#8b5cf6", level: 0 };
       }
     }
 
+    // Cunhados (irmãos do cônjuge)
     if (me.spouseId) {
       const spouse = allData.find((m: FamilyMember) => m.id === me.spouseId);
       if (spouse) {
@@ -198,12 +210,14 @@ export default function FamilyTreeD3Page() {
       }
     }
 
+    // Sobrinhos (filhos dos irmãos)
     for (const sibling of siblings) {
       if (member.fatherId === sibling.id || member.motherId === sibling.id) {
         return { label: isM ? "Sobrinho" : "Sobrinha", color: "#6366f1", level: 1 };
       }
     }
 
+    // Tios (irmãos dos pais)
     for (const parentId of parents) {
       const parent = allData.find((m: FamilyMember) => m.id === parentId);
       if (parent) {
@@ -219,6 +233,7 @@ export default function FamilyTreeD3Page() {
       }
     }
 
+    // Primos (filhos dos tios)
     for (const parentId of parents) {
       const parent = allData.find((m: FamilyMember) => m.id === parentId);
       if (parent) {
@@ -239,13 +254,15 @@ export default function FamilyTreeD3Page() {
     return { label: "", color: "#6b7280", level: 0 };
   };
 
-  const buildFamilyNetwork = (data: FamilyMember[], me: FamilyMember): TreeNodeData => {
+  const buildFamilyNetwork = (data: FamilyMember[], me: FamilyMember): { nodes: NetworkNode[], links: NetworkLink[] } => {
     log('🔍 Iniciando buildFamilyNetwork para:', me.name);
     
     const memberMap = new Map(data.map(m => [m.id, m]));
-    const processedMembers = new Set<string>();
     const familyNetwork = new Set<string>();
-    
+    const nodes: NetworkNode[] = [];
+    const links: NetworkLink[] = [];
+
+    // Mapear toda a rede familiar conectada ao usuário
     const mapFamilyNetwork = (startMember: FamilyMember, visited = new Set<string>()) => {
       if (visited.has(startMember.id)) return;
       visited.add(startMember.id);
@@ -253,6 +270,7 @@ export default function FamilyTreeD3Page() {
       
       log(`🔗 Mapeando rede de: ${startMember.name}`);
 
+      // Adicionar pais
       if (startMember.fatherId) {
         const father = memberMap.get(startMember.fatherId);
         if (father) mapFamilyNetwork(father, visited);
@@ -262,14 +280,17 @@ export default function FamilyTreeD3Page() {
         if (mother) mapFamilyNetwork(mother, visited);
       }
 
+      // Adicionar cônjuge
       if (startMember.spouseId) {
         const spouse = memberMap.get(startMember.spouseId);
         if (spouse) mapFamilyNetwork(spouse, visited);
       }
 
+      // Adicionar filhos
       const children = data.filter(m => m.fatherId === startMember.id || m.motherId === startMember.id);
       children.forEach(child => mapFamilyNetwork(child, visited));
 
+      // Adicionar irmãos
       const siblings = data.filter(m => 
         m.id !== startMember.id && 
         ((m.fatherId && m.fatherId === startMember.fatherId) || 
@@ -281,144 +302,61 @@ export default function FamilyTreeD3Page() {
     mapFamilyNetwork(me);
     log('✅ Rede familiar mapeada:', familyNetwork.size, 'membros');
 
-    const findBestRoot = (): FamilyMember => {
-      const networkMembers = Array.from(familyNetwork).map(id => memberMap.get(id)!);
-      
-      const possibleRoots = networkMembers.filter(m => !m.fatherId && !m.motherId);
-      
-      if (possibleRoots.length > 0) {
-        for (const root of possibleRoots) {
-          if (isInUserLineage(root, me)) {
-            log('✅ Raiz da linhagem do usuário encontrada:', root.name);
-            return root;
-          }
-        }
-        log('✅ Primeira raiz disponível:', possibleRoots[0].name);
-        return possibleRoots[0];
-      }
-
-      log('✅ Usando usuário como centro da árvore:', me.name);
-      return me;
-    };
-
-    const isInUserLineage = (member: FamilyMember, user: FamilyMember): boolean => {
-      let current = user;
-      const visited = new Set<string>();
-      
-      while (current.fatherId || current.motherId) {
-        if (visited.has(current.id)) break;
-        visited.add(current.id);
-        
-        if (current.fatherId === member.id || current.motherId === member.id) return true;
-        
-        const father = current.fatherId ? memberMap.get(current.fatherId) : null;
-        const mother = current.motherId ? memberMap.get(current.motherId) : null;
-        
-        if (father) current = father;
-        else if (mother) current = mother;
-        else break;
-      }
-      
-      return current.id === member.id;
-    };
-
-    const root = findBestRoot();
-
-    const buildNode = (member: FamilyMember, depth: number = 0): TreeNodeData => {
-      log(`${'  '.repeat(depth)}🔍 Processando: ${member.name} (profundidade: ${depth})`);
-      
-      if (depth > 10) {
-        warn(`⚠️ Recursão muito profunda (${depth}) para:`, member.name);
-        const info = getPOVInfo(member, me, data);
-        return {
-          id: member.id,
-          name: member.name,
-          gender: member.gender,
-          label: info.label,
-          labelColor: info.color,
-          isMe: member.id === me.id,
-          children: []
-        };
-      }
-
-      if (processedMembers.has(member.id)) {
-        log(`${'  '.repeat(depth)}⚠️ Membro já processado:`, member.name);
-        const info = getPOVInfo(member, me, data);
-        return {
-          id: member.id,
-          name: member.name,
-          gender: member.gender,
-          label: info.label,
-          labelColor: info.color,
-          isMe: member.id === me.id,
-          children: []
-        };
-      }
-
-      processedMembers.add(member.id);
+    // Criar nós para todos os membros da rede familiar
+    Array.from(familyNetwork).forEach(memberId => {
+      const member = memberMap.get(memberId)!;
       const info = getPOVInfo(member, me, data);
       
-      const relatedMembers: FamilyMember[] = [];
-      
-      const biologicalChildren = data.filter(m => 
-        (m.fatherId === member.id || m.motherId === member.id) && 
-        !processedMembers.has(m.id) &&
-        familyNetwork.has(m.id)
-      );
-      relatedMembers.push(...biologicalChildren);
-      
-      if (member.spouseId && !processedMembers.has(member.spouseId) && familyNetwork.has(member.spouseId)) {
-        const spouse = memberMap.get(member.spouseId);
-        if (spouse) {
-          log(`${'  '.repeat(depth)}💑 Adicionando cônjuge: ${spouse.name}`);
-          relatedMembers.push(spouse);
-        }
-      }
-      
-      if (member.id === me.id) {
-        const siblings = data.filter(m => 
-          m.id !== me.id && 
-          !processedMembers.has(m.id) &&
-          familyNetwork.has(m.id) &&
-          ((m.fatherId && m.fatherId === me.fatherId) || (m.motherId && m.motherId === me.motherId))
-        );
-        
-        siblings.forEach(sibling => {
-          log(`${'  '.repeat(depth)}👫 Adicionando irmão: ${sibling.name}`);
-          relatedMembers.push(sibling);
-        });
-      }
-      
-      log(`${'  '.repeat(depth)}👥 Membros relacionados de ${member.name}:`, relatedMembers.map(c => c.name));
-      
-      const node: TreeNodeData = {
+      const node: NetworkNode = {
         id: member.id,
         name: member.name,
         gender: member.gender,
         label: info.label,
         labelColor: info.color,
         isMe: member.id === me.id,
-        children: []
+        generation: info.level
       };
+      
+      nodes.push(node);
+    });
 
-      relatedMembers.forEach(related => {
-        if (!processedMembers.has(related.id)) {
-          const childNode = buildNode(related, depth + 1);
-          node.children!.push(childNode);
-        }
-      });
+    // Criar links entre os membros
+    Array.from(familyNetwork).forEach(memberId => {
+      const member = memberMap.get(memberId)!;
+      
+      // Links para pais
+      if (member.fatherId && familyNetwork.has(member.fatherId)) {
+        links.push({
+          source: member.fatherId,
+          target: member.id,
+          type: 'parent'
+        });
+      }
+      
+      if (member.motherId && familyNetwork.has(member.motherId)) {
+        links.push({
+          source: member.motherId,
+          target: member.id,
+          type: 'parent'
+        });
+      }
+      
+      // Links para cônjuge (apenas uma direção para evitar duplicatas)
+      if (member.spouseId && familyNetwork.has(member.spouseId) && member.id < member.spouseId) {
+        links.push({
+          source: member.id,
+          target: member.spouseId,
+          type: 'spouse'
+        });
+      }
+    });
 
-      log(`${'  '.repeat(depth)}✅ Nó criado para ${member.name} com ${node.children!.length} relacionados`);
-      return node;
-    };
-
-    const result = buildNode(root);
-    log('✅ Rede familiar final construída:', result);
-    return result;
+    log('✅ Rede construída:', nodes.length, 'nós e', links.length, 'links');
+    return { nodes, links };
   };
 
-  const renderTree = useCallback((data: TreeNodeData, me: FamilyMember) => {
-    log('🔍 Iniciando renderização da árvore');
+  const renderNetwork = useCallback((data: { nodes: NetworkNode[], links: NetworkLink[] }, me: FamilyMember) => {
+    log('🔍 Iniciando renderização da rede familiar');
     
     if (!svgRef.current) {
       console.error('❌ SVG ref ainda não está disponível');
@@ -432,120 +370,134 @@ export default function FamilyTreeD3Page() {
 
     const width = 1600;
     const height = 1000;
-    const margin = { top: 80, right: 80, bottom: 80, left: 80 };
+    const margin = { top: 50, right: 50, bottom: 50, left: 50 };
 
     svg.attr("width", width).attr("height", height);
 
-    const g = svg.append("g");
+    const container = svg.append("g");
 
-    const getNodeFilter = (d: TreeNode): string => {
-      if (d.data.isMe) {
-        return "drop-shadow(0 0 25px rgba(59, 130, 246, 0.8))";
-      }
-      if (isDarkMode) {
-        return "drop-shadow(0 0 15px rgba(74, 222, 128, 0.4))";
-      }
-      return "none";
-    };
-
+    // Configurar zoom
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 3])
       .on("zoom", (event) => {
-        g.attr("transform", event.transform);
+        container.attr("transform", event.transform);
       });
 
     svg.call(zoom);
 
-    const treeLayout = d3.tree<TreeNodeData>()
-      .size([width - margin.left - margin.right, height - margin.top - margin.bottom])
-      .separation((a, b) => {
-        if (a.parent === b.parent) return 4;
-        return 5;
-      });
+    // Clonar dados para evitar mutação
+    const nodes = data.nodes.map(d => ({ ...d }));
+    const links = data.links.map(d => ({ ...d }));
 
-    const root = d3.hierarchy(data);
-    treeLayout(root);
+    // Configurar simulação de força
+    const simulation = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id((d: any) => d.id).distance(150))
+      .force("charge", d3.forceManyBody().strength(-800))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collision", d3.forceCollide().radius(60))
+      .force("y", d3.forceY().y((d: any) => {
+        // Posicionar por geração
+        const baseY = height / 2;
+        const generationSpacing = 120;
+        return baseY + (d.generation * generationSpacing);
+      }).strength(0.8));
 
-    log('🔍 Nós na árvore D3:', root.descendants().length);
-
-    root.descendants().forEach((d) => {
-      d.x = (d.x ?? 0) + margin.left;
-      d.y = (d.y ?? 0) + margin.top;
-    });
-
-    // Criar links (linhas de conexão)
-    g.selectAll(".link")
-      .data(root.links())
-      .enter().append("path")
-      .attr("class", "link")
-      .attr("d", d3.linkVertical<any, TreeNode>()
-        .x((d) => d.x ?? 0)
-        .y((d) => d.y ?? 0)
-      )
-      .style("fill", "none")
-      .style("stroke", isDarkMode ? "#4ade80" : "#16a34a")
-      .style("stroke-width", 2)
-      .style("filter", isDarkMode ? "drop-shadow(0 0 6px rgba(74, 222, 128, 0.6))" : "none");
+    // Criar links
+    const link = container.append("g")
+      .attr("class", "links")
+      .selectAll("line")
+      .data(links)
+      .enter().append("line")
+      .attr("stroke-width", 3)
+      .attr("stroke", (d) => {
+        switch (d.type) {
+          case 'parent': return isDarkMode ? "#4ade80" : "#16a34a";
+          case 'spouse': return isDarkMode ? "#f472b6" : "#ec4899";
+          default: return isDarkMode ? "#6b7280" : "#9ca3af";
+        }
+      })
+      .attr("stroke-dasharray", (d) => d.type === 'spouse' ? "5,5" : "none");
 
     // Criar nós
-    const nodes = g.selectAll(".node")
-      .data(root.descendants())
+    const node = container.append("g")
+      .attr("class", "nodes")
+      .selectAll("g")
+      .data(nodes)
       .enter().append("g")
       .attr("class", "node")
-      .attr("transform", (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
+      .call(d3.drag<SVGGElement, NetworkNode>()
+        .on("start", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on("drag", (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on("end", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }));
 
     // Círculos dos nós
-    nodes.append("circle")
+    node.append("circle")
       .attr("r", 40)
-      .style("fill", isDarkMode ? "#1f2937" : "#ffffff")
-      .style("stroke", (d) => d.data.isMe ? "#3b82f6" : "#16a34a")
-      .style("stroke-width", (d) => d.data.isMe ? 6 : 4)
-      .style("filter", getNodeFilter)
-      .style("cursor", "pointer")
-      .on("mouseover", function(event, d) {
-        d3.select(this).transition().duration(200).attr("r", 45);
+      .attr("fill", isDarkMode ? "#1f2937" : "#ffffff")
+      .attr("stroke", (d) => d.isMe ? "#3b82f6" : "#16a34a")
+      .attr("stroke-width", (d) => d.isMe ? 6 : 4)
+      .style("filter", (d) => {
+        if (d.isMe) {
+          return "drop-shadow(0 0 25px rgba(59, 130, 246, 0.8))";
+        }
+        if (isDarkMode) {
+          return "drop-shadow(0 0 15px rgba(74, 222, 128, 0.4))";
+        }
+        return "none";
       })
-      .on("mouseout", function(event, d) {
-        d3.select(this).transition().duration(200).attr("r", 40);
-      });
+      .style("cursor", "pointer");
 
     // Emojis de gênero
-    nodes.append("text")
+    node.append("text")
       .attr("text-anchor", "middle")
       .attr("dy", "0.3em")
       .style("font-size", "32px")
-      .text((d) => d.data.gender === 'MASCULINO' ? '👨' : '👩');
+      .style("pointer-events", "none")
+      .text((d) => d.gender === 'MASCULINO' ? '👨' : '👩');
 
     // Labels de parentesco
-    nodes.filter((d) => Boolean(d.data.label))
+    node.filter((d) => Boolean(d.label))
       .append("rect")
       .attr("x", 30)
       .attr("y", -35)
-      .attr("width", (d) => d.data.label.length * 9 + 12)
+      .attr("width", (d) => d.label.length * 9 + 12)
       .attr("height", 22)
       .attr("rx", 11)
-      .style("fill", (d) => d.data.labelColor)
+      .attr("fill", (d) => d.labelColor)
       .style("opacity", 0.95);
 
-    nodes.filter((d) => Boolean(d.data.label))
+    node.filter((d) => Boolean(d.label))
       .append("text")
       .attr("x", 36)
       .attr("y", -20)
       .style("font-size", "11px")
       .style("font-weight", "bold")
       .style("fill", "white")
-      .text((d) => d.data.label.toUpperCase());
+      .style("pointer-events", "none")
+      .text((d) => d.label.toUpperCase());
 
     // Nomes
-    nodes.append("text")
+    node.append("text")
       .attr("text-anchor", "middle")
       .attr("dy", "4.5em")
       .style("font-size", "14px")
       .style("font-weight", "bold")
       .style("fill", isDarkMode ? "#e5e7eb" : "#1f2937")
+      .style("pointer-events", "none")
       .each(function(d) {
         const text = d3.select(this);
-        const words = d.data.name.split(/\s+/);
+        const words = d.name.split(/\s+/);
         
         if (words.length > 2) {
           text.text(null);
@@ -566,31 +518,46 @@ export default function FamilyTreeD3Page() {
               .text(word);
           });
         } else {
-          text.text(d.data.name);
+          text.text(d.name);
         }
       });
 
-    // Centralizar árvore
-    const bounds = g.node()?.getBBox();
-    if (bounds) {
-      const fullWidth = bounds.width;
-      const fullHeight = bounds.height;
-      const centerX = width / 2 - fullWidth / 2 - bounds.x;
-      const centerY = height / 2 - fullHeight / 2 - bounds.y;
-      
-      svg.call(zoom.transform, d3.zoomIdentity.translate(centerX, centerY).scale(0.6));
-    }
+    // Atualizar posições na simulação
+    simulation.on("tick", () => {
+      link
+        .attr("x1", (d: any) => d.source.x)
+        .attr("y1", (d: any) => d.source.y)
+        .attr("x2", (d: any) => d.target.x)
+        .attr("y2", (d: any) => d.target.y);
 
-    log('✅ Renderização concluída com sucesso!');
+      node
+        .attr("transform", (d) => `translate(${d.x},${d.y})`);
+    });
+
+    // Centralizar na pessoa principal após estabilizar
+    setTimeout(() => {
+      const meNode = nodes.find(n => n.isMe);
+      if (meNode && meNode.x && meNode.y) {
+        const scale = 0.8;
+        const translateX = width / 2 - meNode.x * scale;
+        const translateY = height / 2 - meNode.y * scale;
+        
+        svg.transition()
+          .duration(1000)
+          .call(zoom.transform, d3.zoomIdentity.translate(translateX, translateY).scale(scale));
+      }
+    }, 3000);
+
+    log('✅ Renderização da rede concluída com sucesso!');
   }, [isDarkMode]);
 
   // useEffect para renderizar quando os dados estiverem prontos
   useEffect(() => {
-    if (treeData && meData && svgRef.current && !loading) {
-      log('🔍 SVG disponível, renderizando árvore...');
-      renderTree(treeData, meData);
+    if (networkData && meData && svgRef.current && !loading) {
+      log('🔍 SVG disponível, renderizando rede...');
+      renderNetwork(networkData, meData);
     }
-  }, [treeData, meData, loading, isDarkMode, renderTree]);
+  }, [networkData, meData, loading, isDarkMode, renderNetwork]);
 
   const handleZoomIn = () => {
     if (svgRef.current) {
@@ -615,7 +582,7 @@ export default function FamilyTreeD3Page() {
       d3.select(svgRef.current)
         .transition()
         .duration(500)
-        .call(d3.zoom<SVGSVGElement, unknown>().transform, d3.zoomIdentity.translate(100, 100).scale(0.6));
+        .call(d3.zoom<SVGSVGElement, unknown>().transform, d3.zoomIdentity.translate(100, 100).scale(0.8));
     }
   };
 
@@ -696,10 +663,12 @@ export default function FamilyTreeD3Page() {
 
             <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
               <p className="text-xs text-gray-600 dark:text-gray-400">
-                <strong>Rede Familiar Completa</strong><br/>
-                • Todos os relacionamentos<br/>
-                • Layout automático D3.js<br/>
-                • Zoom/Pan interativo
+                <strong>Rede Familiar Interativa</strong><br/>
+                • Layout por gerações<br/>
+                • Arraste os nós para reorganizar<br/>
+                • Zoom/Pan interativo<br/>
+                • Linhas sólidas: parentesco<br/>
+                • Linhas tracejadas: casamento
                 {currentUser && (
                   <>
                     <br/>• Usuário: {currentUser.name}
