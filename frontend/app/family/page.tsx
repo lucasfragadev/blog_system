@@ -37,7 +37,8 @@ interface NetworkNode extends d3.SimulationNodeDatum {
   label: string;
   labelColor: string;
   isMe: boolean;
-  generation: number; // Nível geracional (-2: avós, -1: pais, 0: você/irmãos, 1: filhos, 2: netos)
+  generation: number;
+  isFixed?: boolean; // Nova propriedade para controlar se o nó está fixo
   x?: number;
   y?: number;
   fx?: number | null;
@@ -53,12 +54,14 @@ interface NetworkLink extends d3.SimulationLinkDatum<NetworkNode> {
 export default function FamilyTreeD3Page() {
   const router = useRouter();
   const svgRef = useRef<SVGSVGElement>(null);
+  const simulationRef = useRef<d3.Simulation<NetworkNode, NetworkLink> | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [networkData, setNetworkData] = useState<{ nodes: NetworkNode[], links: NetworkLink[] } | null>(null);
   const [meData, setMeData] = useState<FamilyMember | null>(null);
+  const [isLayoutMode, setIsLayoutMode] = useState(false); // Modo de organização
 
   useEffect(() => {
     const checkTheme = () => setIsDarkMode(document.documentElement.classList.contains('dark'));
@@ -314,7 +317,8 @@ export default function FamilyTreeD3Page() {
         label: info.label,
         labelColor: info.color,
         isMe: member.id === me.id,
-        generation: info.level
+        generation: info.level,
+        isFixed: false
       };
       
       nodes.push(node);
@@ -402,6 +406,9 @@ export default function FamilyTreeD3Page() {
         return baseY + (d.generation * generationSpacing);
       }).strength(0.8));
 
+    // Salvar referência da simulação
+    simulationRef.current = simulation;
+
     // Criar links
     const link = container.append("g")
       .attr("class", "links")
@@ -437,19 +444,47 @@ export default function FamilyTreeD3Page() {
         })
         .on("end", (event, d) => {
           if (!event.active) simulation.alphaTarget(0);
-          d.fx = null;
-          d.fy = null;
+          
+          // Se estiver no modo de layout, manter o nó fixo
+          if (isLayoutMode) {
+            d.isFixed = true;
+            // Manter as coordenadas fixas
+            d.fx = event.x;
+            d.fy = event.y;
+            log(`📌 Nó ${d.name} fixado em (${event.x}, ${event.y})`);
+          } else {
+            // Liberar o nó para se mover livremente
+            d.fx = null;
+            d.fy = null;
+            d.isFixed = false;
+          }
         }));
 
     // Círculos dos nós
     node.append("circle")
       .attr("r", 40)
-      .attr("fill", isDarkMode ? "#1f2937" : "#ffffff")
-      .attr("stroke", (d) => d.isMe ? "#3b82f6" : "#16a34a")
-      .attr("stroke-width", (d) => d.isMe ? 6 : 4)
+      .attr("fill", (d) => {
+        if (d.isFixed && isLayoutMode) {
+          return isDarkMode ? "#374151" : "#f3f4f6"; // Cor diferente para nós fixos
+        }
+        return isDarkMode ? "#1f2937" : "#ffffff";
+      })
+      .attr("stroke", (d) => {
+        if (d.isFixed && isLayoutMode) {
+          return "#f59e0b"; // Borda dourada para nós fixos
+        }
+        return d.isMe ? "#3b82f6" : "#16a34a";
+      })
+      .attr("stroke-width", (d) => {
+        if (d.isFixed && isLayoutMode) return 4;
+        return d.isMe ? 6 : 4;
+      })
       .style("filter", (d) => {
         if (d.isMe) {
           return "drop-shadow(0 0 25px rgba(59, 130, 246, 0.8))";
+        }
+        if (d.isFixed && isLayoutMode) {
+          return "drop-shadow(0 0 15px rgba(245, 158, 11, 0.6))";
         }
         if (isDarkMode) {
           return "drop-shadow(0 0 15px rgba(74, 222, 128, 0.4))";
@@ -549,7 +584,7 @@ export default function FamilyTreeD3Page() {
     }, 3000);
 
     log('✅ Renderização da rede concluída com sucesso!');
-  }, [isDarkMode]);
+  }, [isDarkMode, isLayoutMode]);
 
   // useEffect para renderizar quando os dados estiverem prontos
   useEffect(() => {
@@ -583,6 +618,46 @@ export default function FamilyTreeD3Page() {
         .transition()
         .duration(500)
         .call(d3.zoom<SVGSVGElement, unknown>().transform, d3.zoomIdentity.translate(100, 100).scale(0.8));
+    }
+  };
+
+  const toggleLayoutMode = () => {
+    setIsLayoutMode(!isLayoutMode);
+    log(`🔧 Modo de layout ${!isLayoutMode ? 'ativado' : 'desativado'}`);
+  };
+
+  const unfixAllNodes = () => {
+    if (simulationRef.current && networkData) {
+      // Liberar todos os nós
+      networkData.nodes.forEach(node => {
+        node.isFixed = false;
+        node.fx = null;
+        node.fy = null;
+      });
+      
+      // Reiniciar a simulação
+      simulationRef.current.alpha(0.3).restart();
+      
+      // Re-renderizar para atualizar as cores
+      if (meData) {
+        renderNetwork(networkData, meData);
+      }
+      
+      log('🔓 Todos os nós foram liberados');
+    }
+  };
+
+  const pauseSimulation = () => {
+    if (simulationRef.current) {
+      simulationRef.current.stop();
+      log('⏸️ Simulação pausada');
+    }
+  };
+
+  const resumeSimulation = () => {
+    if (simulationRef.current) {
+      simulationRef.current.alpha(0.3).restart();
+      log('▶️ Simulação retomada');
     }
   };
 
@@ -640,6 +715,7 @@ export default function FamilyTreeD3Page() {
           <div className="w-full h-full relative">
             <svg ref={svgRef} className="w-full h-full" />
             
+            {/* Controles de Zoom */}
             <div className="absolute top-4 right-4 flex flex-col gap-2">
               <button 
                 onClick={handleZoomIn}
@@ -661,6 +737,47 @@ export default function FamilyTreeD3Page() {
               </button>
             </div>
 
+            {/* Controles de Layout */}
+            <div className="absolute top-4 left-4 flex flex-col gap-2">
+              <button 
+                onClick={toggleLayoutMode}
+                className={`p-2 rounded-lg shadow-lg border transition-colors ${
+                  isLayoutMode 
+                    ? 'bg-amber-500 border-amber-600 text-white hover:bg-amber-600' 
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+                title={isLayoutMode ? "Desativar modo de organização" : "Ativar modo de organização"}
+              >
+                📌
+              </button>
+              
+              {isLayoutMode && (
+                <>
+                  <button 
+                    onClick={unfixAllNodes}
+                    className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    title="Liberar todos os nós"
+                  >
+                    🔓
+                  </button>
+                  <button 
+                    onClick={pauseSimulation}
+                    className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    title="Pausar simulação"
+                  >
+                    ⏸️
+                  </button>
+                  <button 
+                    onClick={resumeSimulation}
+                    className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    title="Retomar simulação"
+                  >
+                    ▶️
+                  </button>
+                </>
+              )}
+            </div>
+
             <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
               <p className="text-xs text-gray-600 dark:text-gray-400">
                 <strong>Rede Familiar Interativa</strong><br/>
@@ -668,7 +785,18 @@ export default function FamilyTreeD3Page() {
                 • Arraste os nós para reorganizar<br/>
                 • Zoom/Pan interativo<br/>
                 • Linhas sólidas: parentesco<br/>
-                • Linhas tracejadas: casamento
+                • Linhas tracejadas: casamento<br/>
+                {isLayoutMode ? (
+                  <>
+                    • <span className="text-amber-600 font-bold">Modo Organização ATIVO</span><br/>
+                    • Nós ficam fixos onde posicionados<br/>
+                    • Bordas douradas = nós fixos
+                  </>
+                ) : (
+                  <>
+                    • Clique em 📌 para ativar modo organização
+                  </>
+                )}
                 {currentUser && (
                   <>
                     <br/>• Usuário: {currentUser.name}
@@ -684,7 +812,7 @@ export default function FamilyTreeD3Page() {
 
             {/* Botão para ativar debug (apenas em desenvolvimento) */}
             {process.env.NODE_ENV === 'development' && (
-              <div className="absolute top-4 left-4">
+              <div className="absolute top-4 right-1/2 transform translate-x-1/2">
                 <button 
                   onClick={() => {
                     window.location.href = window.location.href + (DEBUG_MODE ? '' : '?debug=true');
