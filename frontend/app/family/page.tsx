@@ -16,7 +16,7 @@ const warn = (...args: any[]) => {
   if (DEBUG_MODE) console.warn(...args);
 };
 
-const error = (...args: any[]) => {
+const logError = (...args: any[]) => {
   console.error(...args); 
 };
 
@@ -64,19 +64,11 @@ export default function FamilyTreeD3Page() {
     fetchCurrentUserAndTree();
   }, []);
 
-  useEffect(() => {
-    if (treeData && meData && svgRef.current && !loading) {
-      log('🔍 SVG disponível, renderizando árvore...');
-      renderTree(treeData, meData);
-    }
-  }, [treeData, meData, loading, isDarkMode]);
-
   const fetchCurrentUserAndTree = async () => {
     try {
       setLoading(true);
       log('🔍 Iniciando busca de dados...');
       
-      // 1. Buscar dados do usuário atual
       const userRes = await fetch(`${API_URL}/users/me`, {
         credentials: 'include',
         headers: {
@@ -98,7 +90,6 @@ export default function FamilyTreeD3Page() {
       log('✅ Usuário encontrado:', userData.name);
       setCurrentUser(userData);
 
-      // 2. Buscar dados da árvore genealógica
       const treeRes = await fetch(`${API_URL}/family/tree`, {
         credentials: 'include',
         headers: {
@@ -122,7 +113,6 @@ export default function FamilyTreeD3Page() {
         return;
       }
 
-      // 3. Encontrar o membro da família vinculado ao usuário
       const me = familyData.find((m: FamilyMember) => m.user?.id === userData.id);
       log('✅ Meu perfil na árvore:', me ? me.name : 'Não encontrado');
 
@@ -131,17 +121,15 @@ export default function FamilyTreeD3Page() {
         return;
       }
 
-      // 4. Construir rede familiar completa
       log('🔍 Construindo rede familiar completa...');
       const networkData = buildFamilyNetwork(familyData, me);
       log('✅ Rede familiar construída:', networkData);
       
-      // 5. Salvar dados para renderização posterior
       setTreeData(networkData);
       setMeData(me);
 
     } catch (err) {
-      error("❌ Erro ao carregar árvore:", err);
+      logError("❌ Erro ao carregar árvore:", err);
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(`Erro ao carregar dados: ${errorMessage}`);
     } finally {
@@ -154,7 +142,6 @@ export default function FamilyTreeD3Page() {
 
     const isM = member.gender === 'MASCULINO';
     
-    // Mapeamento de IDs para busca rápida
     const parents = [me.fatherId, me.motherId].filter(Boolean) as string[];
     const grandparents = allData.filter((m: FamilyMember) => parents.includes(m.id)).flatMap((p: FamilyMember) => [p.fatherId, p.motherId]).filter(Boolean) as string[];
     const greatGrandparents = allData.filter((m: FamilyMember) => grandparents.includes(m.id)).flatMap((g: FamilyMember) => [g.fatherId, g.motherId]).filter(Boolean) as string[];
@@ -166,22 +153,16 @@ export default function FamilyTreeD3Page() {
     const children = allData.filter((m: FamilyMember) => m.fatherId === me.id || m.motherId === me.id);
     const grandchildren = allData.filter((m: FamilyMember) => children.some(c => m.fatherId === c.id || m.motherId === c.id));
 
-    // Níveis Superiores
     if (greatGrandparents.includes(member.id)) return { label: isM ? "Bisavô" : "Bisavó", color: "#059669", level: -3 };
     if (grandparents.includes(member.id)) return { label: isM ? "Avô" : "Avó", color: "#16a34a", level: -2 };
     if (parents.includes(member.id)) return { label: isM ? "Pai" : "Mãe", color: "#22c55e", level: -1 };
 
-    // Mesma Geração (Nível 0)
     if (member.id === me.spouseId) return { label: isM ? "Marido" : "Esposa", color: "#ec4899", level: 0 };
     if (siblings.some(s => s.id === member.id)) return { label: isM ? "Irmão" : "Irmã", color: "#9333ea", level: 0 };
 
-    // Níveis Inferiores
     if (children.some(c => c.id === member.id)) return { label: isM ? "Filho" : "Filha", color: "#0d9488", level: 1 };
     if (grandchildren.some(g => g.id === member.id)) return { label: isM ? "Neto" : "Neta", color: "#f59e0b", level: 2 };
 
-    // --- AFINIDADE ---
-    
-    // Sogros (pais do cônjuge)
     if (me.spouseId) {
       const spouse = allData.find((m: FamilyMember) => m.id === me.spouseId);
       if (spouse) {
@@ -190,21 +171,18 @@ export default function FamilyTreeD3Page() {
       }
     }
 
-    // Noras e Genros (cônjuges dos filhos)
     for (const child of children) {
       if (child.spouseId === member.id) {
         return { label: isM ? "Genro" : "Nora", color: "#0891b2", level: 1 };
       }
     }
 
-    // Cunhados/Cunhadas (cônjuges dos irmãos)
     for (const sibling of siblings) {
       if (sibling.spouseId === member.id) {
         return { label: isM ? "Cunhado" : "Cunhada", color: "#8b5cf6", level: 0 };
       }
     }
 
-    // Concunhados (irmãos do cônjuge)
     if (me.spouseId) {
       const spouse = allData.find((m: FamilyMember) => m.id === me.spouseId);
       if (spouse) {
@@ -220,14 +198,12 @@ export default function FamilyTreeD3Page() {
       }
     }
 
-    // Sobrinhos (filhos dos irmãos)
     for (const sibling of siblings) {
       if (member.fatherId === sibling.id || member.motherId === sibling.id) {
         return { label: isM ? "Sobrinho" : "Sobrinha", color: "#6366f1", level: 1 };
       }
     }
 
-    // Tios (irmãos dos pais)
     for (const parentId of parents) {
       const parent = allData.find((m: FamilyMember) => m.id === parentId);
       if (parent) {
@@ -243,7 +219,6 @@ export default function FamilyTreeD3Page() {
       }
     }
 
-    // Primos (filhos dos tios)
     for (const parentId of parents) {
       const parent = allData.find((m: FamilyMember) => m.id === parentId);
       if (parent) {
@@ -264,15 +239,13 @@ export default function FamilyTreeD3Page() {
     return { label: "", color: "#6b7280", level: 0 };
   };
 
-  // ✅ NOVA FUNÇÃO: Construir Rede Familiar Completa
   const buildFamilyNetwork = (data: FamilyMember[], me: FamilyMember): TreeNodeData => {
     log('🔍 Iniciando buildFamilyNetwork para:', me.name);
     
     const memberMap = new Map(data.map(m => [m.id, m]));
     const processedMembers = new Set<string>();
-    const familyNetwork = new Set<string>(); // Todos os membros conectados à rede familiar
-
-    // ✅ ETAPA 1: Mapear toda a rede familiar conectada ao usuário
+    const familyNetwork = new Set<string>();
+    
     const mapFamilyNetwork = (startMember: FamilyMember, visited = new Set<string>()) => {
       if (visited.has(startMember.id)) return;
       visited.add(startMember.id);
@@ -280,7 +253,6 @@ export default function FamilyTreeD3Page() {
       
       log(`🔗 Mapeando rede de: ${startMember.name}`);
 
-      // Adicionar pais
       if (startMember.fatherId) {
         const father = memberMap.get(startMember.fatherId);
         if (father) mapFamilyNetwork(father, visited);
@@ -290,17 +262,14 @@ export default function FamilyTreeD3Page() {
         if (mother) mapFamilyNetwork(mother, visited);
       }
 
-      // Adicionar cônjuge
       if (startMember.spouseId) {
         const spouse = memberMap.get(startMember.spouseId);
         if (spouse) mapFamilyNetwork(spouse, visited);
       }
 
-      // Adicionar filhos
       const children = data.filter(m => m.fatherId === startMember.id || m.motherId === startMember.id);
       children.forEach(child => mapFamilyNetwork(child, visited));
 
-      // Adicionar irmãos
       const siblings = data.filter(m => 
         m.id !== startMember.id && 
         ((m.fatherId && m.fatherId === startMember.fatherId) || 
@@ -309,20 +278,15 @@ export default function FamilyTreeD3Page() {
       siblings.forEach(sibling => mapFamilyNetwork(sibling, visited));
     };
 
-    // Mapear toda a rede familiar
     mapFamilyNetwork(me);
     log('✅ Rede familiar mapeada:', familyNetwork.size, 'membros');
 
-    // ✅ ETAPA 2: Encontrar a melhor raiz para a árvore
     const findBestRoot = (): FamilyMember => {
-      // Buscar o ancestral mais antigo na rede familiar
       const networkMembers = Array.from(familyNetwork).map(id => memberMap.get(id)!);
       
-      // Encontrar membros sem pais (possíveis raízes)
       const possibleRoots = networkMembers.filter(m => !m.fatherId && !m.motherId);
       
       if (possibleRoots.length > 0) {
-        // Se há múltiplas raízes, priorizar a da linhagem do usuário
         for (const root of possibleRoots) {
           if (isInUserLineage(root, me)) {
             log('✅ Raiz da linhagem do usuário encontrada:', root.name);
@@ -333,12 +297,10 @@ export default function FamilyTreeD3Page() {
         return possibleRoots[0];
       }
 
-      // Se não há raízes claras, usar o usuário como centro
       log('✅ Usando usuário como centro da árvore:', me.name);
       return me;
     };
 
-    // Verificar se um membro está na linhagem do usuário
     const isInUserLineage = (member: FamilyMember, user: FamilyMember): boolean => {
       let current = user;
       const visited = new Set<string>();
@@ -362,7 +324,6 @@ export default function FamilyTreeD3Page() {
 
     const root = findBestRoot();
 
-    // ✅ ETAPA 3: Construir árvore hierárquica com toda a rede
     const buildNode = (member: FamilyMember, depth: number = 0): TreeNodeData => {
       log(`${'  '.repeat(depth)}🔍 Processando: ${member.name} (profundidade: ${depth})`);
       
@@ -397,10 +358,8 @@ export default function FamilyTreeD3Page() {
       processedMembers.add(member.id);
       const info = getPOVInfo(member, me, data);
       
-      // Incluir todos os relacionamentos relevantes
       const relatedMembers: FamilyMember[] = [];
       
-      // 1. Filhos biológicos
       const biologicalChildren = data.filter(m => 
         (m.fatherId === member.id || m.motherId === member.id) && 
         !processedMembers.has(m.id) &&
@@ -408,7 +367,6 @@ export default function FamilyTreeD3Page() {
       );
       relatedMembers.push(...biologicalChildren);
       
-      // 2. Cônjuge (apenas se não foi processado e está na rede)
       if (member.spouseId && !processedMembers.has(member.spouseId) && familyNetwork.has(member.spouseId)) {
         const spouse = memberMap.get(member.spouseId);
         if (spouse) {
@@ -417,7 +375,6 @@ export default function FamilyTreeD3Page() {
         }
       }
       
-      // 3. Se é o usuário principal, incluir irmãos e suas famílias
       if (member.id === me.id) {
         const siblings = data.filter(m => 
           m.id !== me.id && 
@@ -444,7 +401,6 @@ export default function FamilyTreeD3Page() {
         children: []
       };
 
-      // Processar todos os membros relacionados
       relatedMembers.forEach(related => {
         if (!processedMembers.has(related.id)) {
           const childNode = buildNode(related, depth + 1);
@@ -474,8 +430,8 @@ export default function FamilyTreeD3Page() {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const width = 1600; // Aumentado para rede maior
-    const height = 1000; // Aumentado para rede maior
+    const width = 1600;
+    const height = 1000;
     const margin = { top: 80, right: 80, bottom: 80, left: 80 };
 
     svg.attr("width", width).attr("height", height);
@@ -503,7 +459,6 @@ export default function FamilyTreeD3Page() {
     const treeLayout = d3.tree<TreeNodeData>()
       .size([width - margin.left - margin.right, height - margin.top - margin.bottom])
       .separation((a, b) => {
-        // Mais espaço para acomodar rede complexa
         if (a.parent === b.parent) return 4;
         return 5;
       });
@@ -541,7 +496,7 @@ export default function FamilyTreeD3Page() {
 
     // Círculos dos nós
     nodes.append("circle")
-      .attr("r", 40) // Aumentado para melhor visibilidade
+      .attr("r", 40)
       .style("fill", isDarkMode ? "#1f2937" : "#ffffff")
       .style("stroke", (d) => d.data.isMe ? "#3b82f6" : "#16a34a")
       .style("stroke-width", (d) => d.data.isMe ? 6 : 4)
@@ -558,7 +513,7 @@ export default function FamilyTreeD3Page() {
     nodes.append("text")
       .attr("text-anchor", "middle")
       .attr("dy", "0.3em")
-      .style("font-size", "32px") // Aumentado
+      .style("font-size", "32px")
       .text((d) => d.data.gender === 'MASCULINO' ? '👨' : '👩');
 
     // Labels de parentesco
@@ -585,7 +540,7 @@ export default function FamilyTreeD3Page() {
     nodes.append("text")
       .attr("text-anchor", "middle")
       .attr("dy", "4.5em")
-      .style("font-size", "14px") // Aumentado
+      .style("font-size", "14px")
       .style("font-weight", "bold")
       .style("fill", isDarkMode ? "#e5e7eb" : "#1f2937")
       .each(function(d) {
@@ -593,7 +548,6 @@ export default function FamilyTreeD3Page() {
         const words = d.data.name.split(/\s+/);
         
         if (words.length > 2) {
-          // Para nomes muito longos, mostrar apenas primeiro e último
           text.text(null);
           text.append("tspan")
             .attr("x", 0)
@@ -629,6 +583,14 @@ export default function FamilyTreeD3Page() {
 
     log('✅ Renderização concluída com sucesso!');
   }, [isDarkMode]);
+
+  // useEffect para renderizar quando os dados estiverem prontos
+  useEffect(() => {
+    if (treeData && meData && svgRef.current && !loading) {
+      log('🔍 SVG disponível, renderizando árvore...');
+      renderTree(treeData, meData);
+    }
+  }, [treeData, meData, loading, isDarkMode, renderTree]);
 
   const handleZoomIn = () => {
     if (svgRef.current) {
@@ -756,7 +718,6 @@ export default function FamilyTreeD3Page() {
               <div className="absolute top-4 left-4">
                 <button 
                   onClick={() => {
-                    // Recarregar com debug ativado
                     window.location.href = window.location.href + (DEBUG_MODE ? '' : '?debug=true');
                   }}
                   className="bg-yellow-500 text-black px-3 py-1 rounded text-xs font-bold hover:bg-yellow-400"
