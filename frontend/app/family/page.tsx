@@ -48,7 +48,7 @@ interface NetworkNode extends d3.SimulationNodeDatum {
 interface NetworkLink extends d3.SimulationLinkDatum<NetworkNode> {
   source: string | NetworkNode;
   target: string | NetworkNode;
-  type: 'parent' | 'spouse' | 'child';
+  type: 'parent' | 'spouse' | 'child' | 'sibling';
 }
 
 export default function FamilyTreeD3Page() {
@@ -353,6 +353,23 @@ export default function FamilyTreeD3Page() {
           type: 'spouse'
         });
       }
+
+      const siblings = data.filter(m =>
+        m.id !== member.id &&
+        familyNetwork.has(m.id) &&
+        ((m.fatherId && m.motherId === member.fatherId) ||
+      (m.motherId && m.motherId === member.motherId))
+      );
+
+      siblings.forEach(sibling => {
+        if (member.id < sibling.id) {
+          links.push({
+            source: member.id,
+            target: sibling.id,
+            type: 'sibling'
+          });
+        }
+      });
     });
 
     log('✅ Rede construída:', nodes.length, 'nós e', links.length, 'links');
@@ -418,12 +435,18 @@ export default function FamilyTreeD3Page() {
       .attr("stroke-width", 3)
       .attr("stroke", (d) => {
         switch (d.type) {
-          case 'parent': return isDarkMode ? "#4ade80" : "#16a34a";
-          case 'spouse': return isDarkMode ? "#f472b6" : "#ec4899";
+          case 'parent': return isDarkMode ? "#4ad9de" : "#16a34a";
+          case 'spouse': return isDarkMode ? "#f472b6" : "#ec4848";
+          case 'sibling': return isDarkMode ? "#fbbf24" : "#f59e0b";
           default: return isDarkMode ? "#6b7280" : "#9ca3af";
         }
       })
-      .attr("stroke-dasharray", (d) => d.type === 'spouse' ? "5,5" : "none");
+      .attr("stroke-dasharray", (d) => {
+        if (d.type === 'spouse') return "5,5";
+        if (d.type === 'sibling') return "3,3";
+        return "none";
+      }
+    );
 
     // Criar nós
     const node = container.append("g")
@@ -465,13 +488,13 @@ export default function FamilyTreeD3Page() {
       .attr("r", 40)
       .attr("fill", (d) => {
         if (d.isFixed && isLayoutMode) {
-          return isDarkMode ? "#374151" : "#f3f4f6"; // Cor diferente para nós fixos
+          return isDarkMode ? "#374151" : "#f3f4f6";
         }
         return isDarkMode ? "#1f2937" : "#ffffff";
       })
       .attr("stroke", (d) => {
         if (d.isFixed && isLayoutMode) {
-          return "#f59e0b"; // Borda dourada para nós fixos
+          return "#f59e0b";
         }
         return d.isMe ? "#3b82f6" : "#16a34a";
       })
@@ -514,7 +537,7 @@ export default function FamilyTreeD3Page() {
 
     node.filter((d) => Boolean(d.label))
       .append("text")
-      .attr("x", 36)
+      .attr("x", 40)
       .attr("y", -20)
       .style("font-size", "11px")
       .style("font-weight", "bold")
@@ -538,7 +561,7 @@ export default function FamilyTreeD3Page() {
           text.text(null);
           text.append("tspan")
             .attr("x", 0)
-            .attr("dy", 0)
+            .attr("dy", 65)
             .text(words[0]);
           text.append("tspan")
             .attr("x", 0)
@@ -616,7 +639,7 @@ export default function FamilyTreeD3Page() {
     if (svgRef.current) {
       d3.select(svgRef.current)
         .transition()
-        .duration(500)
+        .duration(50)
         .call(d3.zoom<SVGSVGElement, unknown>().transform, d3.zoomIdentity.translate(100, 100).scale(0.8));
     }
   };
@@ -786,11 +809,12 @@ export default function FamilyTreeD3Page() {
                 • Zoom/Pan interativo<br/>
                 • Linhas sólidas: parentesco<br/>
                 • Linhas tracejadas: casamento<br/>
+                • Linhas pontilhadas: irmãos<br />
                 {isLayoutMode ? (
                   <>
-                    • <span className="text-amber-600 font-bold">Modo Organização ATIVO</span><br/>
-                    • Nós ficam fixos onde posicionados<br/>
-                    • Bordas douradas = nós fixos
+                    • <span className="text-amber-600 font-bold">Modo Organização ATIVO</span>
+                    {/* • Nós ficam fixos onde posicionados<br/>*/}
+                    {/* • Bordas douradas = nós fixos */}
                   </>
                 ) : (
                   <>
