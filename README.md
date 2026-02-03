@@ -1,4 +1,4 @@
-# A Grande Família Blog - API
+# A Grande Família Blog
 
 Esta é a API RESTful do projeto "A Grande Família Blog", um espaço dedicado ao compartilhamento de momentos e memórias familiares. Desenvolvida com Node.js, TypeScript e Express, a API utiliza uma arquitetura em camadas (Controller, Service, Repository) e segue as melhores práticas de segurança e escalabilidade.
 
