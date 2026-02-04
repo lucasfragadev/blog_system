@@ -4,7 +4,6 @@ import { FamilyService } from '../services/FamilyService';
 const familyService = new FamilyService();
 
 export const familyController = {
-  // GET /family/members
   index: async (req: Request, res: Response) => {
     try {
       const members = await familyService.listAllMembers();
@@ -14,7 +13,6 @@ export const familyController = {
     }
   },
 
-  // POST /family/manual
   createManual: async (req: Request, res: Response) => {
     try {
       const member = await familyService.createVisualMember(req.body);
@@ -24,7 +22,6 @@ export const familyController = {
     }
   },
 
-  // POST /family/link
   link: async (req: Request, res: Response) => {
     const { memberId, relativeId, type } = req.body;
     try {
@@ -35,13 +32,26 @@ export const familyController = {
     }
   },
 
-  // GET /family/tree
   getTree: async (req: Request, res: Response) => {
     try {
       const tree = await familyService.getTreeData();
       return res.status(200).json(tree);
     } catch (error) {
       return res.status(500).json({ message: "Erro ao buscar árvore." });
+    }
+  },
+
+  migrateExistingUsers: async (req: Request, res: Response) => {
+    try {
+      const results = await familyService.createFamilyMemberForExistingUsers();
+      return res.status(200).json({ 
+        message: "Migração concluída", 
+        migratedUsers: results.length,
+        details: results 
+      });
+    } catch (error) {
+      console.error('Erro na migração:', error);
+      return res.status(500).json({ message: "Erro ao migrar usuários existentes." });
     }
   }
 };

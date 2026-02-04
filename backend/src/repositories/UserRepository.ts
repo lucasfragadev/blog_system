@@ -10,27 +10,47 @@ export class UserRepository {
     birthDate?: Date | null; 
     gender?: Gender 
   }): Promise<User> {
-    const user = await prisma.user.create({
-      data: {
+    const result = await prisma.$transaction(async (tx) => {
+      const familyMember = await tx.familyMember.create({
+        data: {
         name: data.name,
-        email: data.email,
-        password: data.password,
         birthDate: data.birthDate,
-        gender: data.gender,
+          gender: data.gender || 'OUTRO',
       },
     });
+
+      const user = await tx.user.create({
+        data: {
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          birthDate: data.birthDate,
+          gender: data.gender,
+          familyMemberId: familyMember.id,
+        },
+      });
+
     return user;
+    });
+
+    return result;
   }
 
   async findByEmail(email: string): Promise<User | null> {
     return await prisma.user.findUnique({
       where: { email },
+      include: {
+        familyMember: true,
+      },
     });
   }
 
   async findById(id: string): Promise<User | null> {
     return await prisma.user.findUnique({
       where: { id },
+      include: {
+        familyMember: true,
+      },
     });
   }
 }
